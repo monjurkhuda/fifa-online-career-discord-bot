@@ -29,7 +29,12 @@ sequelize.sync({ force }).then(async () => {
 		TransferMarket.upsert({ name: 'M. Dembele', value: 550, club: 'Olympique Lyonnais', position: 'ST', current_rating: 82, age: 22, wage: 100000 }),
 		TransferMarket.upsert({ name: 'M. Dembele', value: 250, club: 'Guangzhou R&F FC', position: 'CM', current_rating: 80, age: 31, wage: 20000 }),
 		Clubs.upsert({ name: 'ManUtd', balance: 500000000 }),
-		Clubs.upsert({ name: 'Liverpool', balance: 200000000 })		
+		Clubs.upsert({ name: 'Liverpool', balance: 500000000 }),
+		Clubs.upsert({ name: 'ManCity', balance: 500000000 }),
+		Clubs.upsert({ name: 'Arsenal', balance: 500000000 }),
+		Clubs.upsert({ name: 'Madrid', balance: 500000000 }),
+		Clubs.upsert({ name: 'Barcelona', balance: 500000000 }),
+		Clubs.upsert({ name: 'PSG', balance: 500000000 })
 	];
 	await Promise.all(init);
 	console.log('Database synced');

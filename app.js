@@ -53,9 +53,10 @@ client.on('message', async message => {
 	const [, command, commandArgs] = input.match(/(\w+)\s*([\s\S]*)/);
 
 	if (command === 'balance') {
-		const target = message.mentions.users.first() || message.author;
-		return message.channel.send(`${target || target.tag} has ${currency.getBalance(target.id)}€`);
-
+		const target = message.author;
+		const club = await Clubs.findOne({ where: { manager_id: target.id } });
+		return message.channel.send(`${club.name} currently has a balance of ${club.balance}€`);
+		
 	} else if (command === 'assignclub') {
 		const target = message.mentions.users.first() || message.author;
 		const splitArgs = commandArgs.split(' ');
@@ -63,19 +64,30 @@ client.on('message', async message => {
 		console.log(splitArgs[1].toString());
 
 		const club = await Clubs.findOne({ where: { name: { [Op.like]: splitArgs[1] } } });
-		if (!club) return message.channel.send('Please check the proper spelling of the club. We use non-spaced & short names, like ManUtd, ManCity...');
+		if (!club) return message.channel.send('Please check the spelling of the club name. We use specific, non-spaced, short nicknames.');
 
 		await Clubs.update({ manager_id: target.id }, { where: { name: { [Op.like]: splitArgs[1] } } });
+		await Managers.update({ club: club.name }, { where: { manager_id: { [Op.like]: target.id } } });
 
 		message.channel.send(`${target || target.tag} has been assigned as the manager of ${club.name}`);
-					   		 	  	  	   
+		
 	} else if (command === 'teaminfo') {
 		const target = message.mentions.users.first() || message.author;
-		const manager = await Managers.findOne({ where: { manager_id: target.id } });
-		const items = await manager.getItems();
+		const players = await TransferMarket.findAll({ where: { manager_id: target.id } });
+		
+		if (players) {
+			players.forEach(function (obj) {
+				message.channel.send(`${obj.position} > ${obj.name} / ${obj.current_rating}\n`);
+				return;
+			});
+		}
 
-		if (!items.length) return message.channel.send(`${target || target.tag} has no players!`);
-		return message.channel.send(`${target || target.tag} currently has ${items.map(t => `${t.player.name}`).join(', ')}.`);
+		if (!players.length) {
+			message.channel.send(`${target || target.tag} currently manages no players.`);
+		}
+
+		console.log(`Manager ID: ${players}`);
+		console.log(`Messenger ID: ${target.id}`);
 
 	} else if (command === 'transferbalance') {
 		const currentAmount = currency.getBalance(message.author.id);
@@ -92,16 +104,30 @@ client.on('message', async message => {
 
 	} else if (command === 'findplayer') {
 		const player = await TransferMarket.findAll({ where: { name: { [Op.like]: commandArgs } } });
-		if (!player) return message.channel.send('That player doesn\'t exist.');
-		if (player) {
-			player.forEach(function (obj) {
-				message.channel.send(`Name: ${obj.name}   Age: ${obj.age}
-									\nClub: ${obj.club}
-									\nPosition: ${obj.position}   Rating: ${obj.current_rating}
-									\nValue: ${obj.value}
-									\nWage: ${obj.wage}
-									\nID: ${obj.id}
-									\n--^--^--^--^--^--^--^--`);
+		if (!player.length) return message.channel.send('That player doesn\'t exist.');
+		if (player) {			
+
+		player.forEach(function (obj) {
+			console.log(obj.loan_club);
+
+			if (obj.loan_club) {
+				player.forEach(function (obj) {
+					message.channel.send(`Name: ${obj.name}   Age: ${obj.age}
+						\nClub: ${obj.loan_club} (On Loan Until: ${obj.loan_end})
+						\nLoaned From: ${obj.club}
+						\nPosition: ${obj.position}   Rating: ${obj.current_rating}
+						\nValue: ${obj.value}
+						\nWage: ${obj.wage}
+						\nID: ${obj.id}
+						\n--^--^--^--^--^--^--^--`);
+				})
+			} else message.channel.send(`Name: ${obj.name}   Age: ${obj.age}
+					\nClub: ${obj.club}
+					\nPosition: ${obj.position}   Rating: ${obj.current_rating}
+					\nValue: ${obj.value}
+					\nWage: ${obj.wage}
+					\nID: ${obj.id}
+					\n--^--^--^--^--^--^--^--`)
 			});
 		}
 
@@ -113,20 +139,72 @@ client.on('message', async message => {
 		console.log(message.author.id);
 		if (!player) { return message.channel.send('That player ID doesn\'t exist.'); }
 		else if (player.value > managerClub.balance) {
-			return message.channel.send(`You don't have enough Euros, ${message.author}!`);
+			return message.channel.send(`You don't have enough €s, ${message.author}!`);
 		} else if (player.manager_id) {
-			return message.channel.send(`Please make a formal enquiry to ${player.club}.`);
+			return message.channel.send(`Please make a formal enquiry to ${player.club} Manager.`);
 		} else {
-			await Clubs.update({ balance: clubBalance - player.value }, { where: { manager_id: message.author.id } });
 			await TransferMarket.update({ manager_id: message.author.id, club: managerClub.name }, { where: { id: commandArgs } });
-			message.channel.send(`${player.name} signs for ${managerClub.name}!`);
+			await Clubs.update({ balance: clubBalance - player.value }, { where: { manager_id: message.author.id } });
+			message.channel.send(`${player.name} signs for ${managerClub.name} for ${player.value} €s!`);
+		}
+
+	} else if (command === 'loanplayer') {
+		var oneWeek = new Date();
+		oneWeek.setDate(oneWeek.getDate() + 7);
+		var dd = String(oneWeek.getDate()).padStart(2, '0');
+		var mm = String(oneWeek.getMonth() + 1).padStart(2, '0');
+		var yyyy = oneWeek.getFullYear();
+		oneWeek = mm + '/' + dd + '/' + yyyy;
+
+		const player = await TransferMarket.findOne({ where: { id: { [Op.like]: commandArgs } } });
+		const managerClub = await Clubs.findOne({ where: { manager_id: { [Op.like]: message.author.id } } });
+		let clubBalance = managerClub.balance;
+		let loanFee = player.value * 0.1;
+		console.log(player.manager_id);
+		console.log(message.author.id);
+		if (player.manager_id) {
+			message.channel.send(`Please make a formal enquiry to ${player.club} Manager.`);
+		} else if (player.loan_club) {
+			message.channel.send(`${player.name} is currently on loan in ${player.loan_club} until ${player.loan_end}.`);
+		} else if (!player.manager_id) {
+			if (player.current_rating > 84 || player.age > 23) {
+				message.channel.send(`This player is not available for loan. Non-Human-Managed players must be 23 or younger and rated under 85.`);
+			}
+		} else if (loanFee > managerClub.balance) {
+			message.channel.send(`The loan fee for ${player.name} is ${loanFee}/week. Currently, your club cannot afford this loan.`);
+		} else {
+			await TransferMarket.update({ loan_club: managerClub.name, loan_end: oneWeek }, { where: { id: commandArgs } });
+			await Clubs.update({ balance: clubBalance - loanFee }, { where: { manager_id: message.author.id } });
+			message.channel.send(`${player.name} is loaned to ${managerClub.name} until ${oneWeek} for a fee of ${loanFee} €.`);
+		}
+
+	} else if (command === 'swapplayer') {
+		const args = message.content.slice(PREFIX.length).split(/ +/);
+		const inPlayer = await TransferMarket.findOne({ where: { id: { [Op.like]: args[1] } } });
+		const outPlayer = await TransferMarket.findOne({ where: { id: { [Op.like]: args[2] } } });
+		let clubBalance = managerClub.balance;
+		let loanFee = player.value * 0.1;
+		if (inPlayer.manager_id) {
+			message.channel.send(`Please make a formal enquiry to ${player.club} Manager.`);
+		} else if (player.loan_club) {
+			message.channel.send(`${player.name} is currently on loan in ${player.loan_club} until ${player.loan_end}.`);
+		} else if (!player.manager_id) {
+			if (player.current_rating > 84 || player.age > 23) {
+				message.channel.send(`This player is not available for loan. Non-Human-Managed players must be 23 or younger and rated under 85.`);
+			}
+		} else if (loanFee > managerClub.balance) {
+			message.channel.send(`The loan fee for ${player.name} is ${loanFee}/week. Currently, your club cannot afford this loan.`);
+		} else {
+			await TransferMarket.update({ loan_club: managerClub.name, loan_end: oneWeek }, { where: { id: commandArgs } });
+			await Clubs.update({ balance: clubBalance - loanFee }, { where: { manager_id: message.author.id } });
+			message.channel.send(`${player.name} is loaned to ${managerClub.name} until ${oneWeek} for a fee of ${loanFee} €.`);
 		}
 
 	} else if (command === 'playerinfo') {
 		const player = await TransferMarket.findOne({ where: { name: { [Op.like]: commandArgs } } });
 		if (!player) return message.channel.send('That player doesn\'t exist.');
 		if (player) {
-			message.channel.send(`${player.name} costs ${player.value} Euros.`);
+			message.channel.send(`${player.name} has a transfer fee of ${player.value} €`);
 		}
 
 	} else if (command === 'timetest') {
@@ -196,12 +274,9 @@ client.on('message', async message => {
 
 		message.channel.send(`<-- ROUND 1: ${wsone} to ${weone} -->\n${teamlist[0]} vs ${teamlist[3]}\n${teamlist[1]} vs ${teamlist[2]}\n${teamlist[3]} vs ${teamlist[2]}\n\n<-- ROUND 2: ${wstwo} to ${wetwo} -->\n${teamlist[0]} vs ${teamlist[1]}\n${teamlist[1]} vs ${teamlist[3]}\n${teamlist[2]} vs ${teamlist[0]}`);
 
-	} else if (command === 'dailytasks') {
+	} else if (command === 'dailytasks') {				
+		//NEWS///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-				
-		/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-		// NEWS
 		let eventsProbabInterval = [];
 		let i = 0;
 		let maxnum = 0;
@@ -254,11 +329,22 @@ client.on('message', async message => {
 			randomInteger = Math.floor(Math.random() * max) + 1;
 			return randomInteger;
 		};
-
 		
-		/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+		//LoanEnds////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+		var today = new Date();
+		var dd = String(today.getDate()).padStart(2, '0');
+		var mm = String(today.getMonth() + 1).padStart(2, '0');
+		var yyyy = today.getFullYear();
+		today = mm + '/' + dd + '/' + yyyy;
 
-
+		const loanEndedPlayer = await TransferMarket.findAll({ where: { loan_end: { [Op.like]: today } } });
+		loanEndedPlayer.forEach(async function (obj) {
+			console.log(`Today: ${today}`);
+			console.log(`Player: ${obj.name}`);
+			console.log(`Today: ${obj.loan_end}`);
+			message.channel.send(`${obj.name} ends his loan with ${obj.loan_club} and returns to ${obj.club}`);
+			await TransferMarket.update({ loan_club: null, loan_end: null }, { where: { id: obj.id } });
+		});
 	}
 
 });
