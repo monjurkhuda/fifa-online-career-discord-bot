@@ -14,30 +14,9 @@ const sequelize = new Sequelize('database', 'username', 'password', {
 
 const Managers = sequelize.import('models/Managers');
 const TransferMarket = sequelize.import('models/TransferMarket');
-const TeamPlayers = sequelize.import('models/TeamPlayers');
 const Results = sequelize.import('models/Results');
 const Clubs = sequelize.import('models/Clubs');
 const YouthFacilities = sequelize.import('models/YouthFacilities');
+const YouthCoaches = sequelize.import('models/YouthCoaches');
 
-TeamPlayers.belongsTo(TransferMarket, { foreignKey: 'player_id', as: 'player' });
-
-Managers.prototype.addItem = async function (player) {
-	const teamPlayer = await TeamPlayers.findOne({
-		where: { manager_id: this.manager_id, player_id: player.id },
-	});
-
-	if (teamPlayer) {
-		return teamPlayer.save();
-	}
-
-	return TeamPlayers.create({ manager_id: this.manager_id, player_id: player.id, amount: 1});
-};
-
-Managers.prototype.getItems = function () {
-	return TeamPlayers.findAll({
-		where: { manager_id: this.manager_id },
-		include: ['player'],
-	});
-};
-
-module.exports = { Managers, TransferMarket, TeamPlayers, Results, Clubs, YouthFacilities };
+module.exports = { Managers, TransferMarket, Results, Clubs, YouthFacilities, YouthCoaches };

@@ -30,6 +30,7 @@ module.exports = (sequelize, DataTypes) => {
 		},
 		facility_quality: {
 			type: DataTypes.INTEGER,
+			defaultValue: 1,
 		},
 	}, {
 		timestamps: false,

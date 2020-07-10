@@ -1,20 +1,17 @@
 module.exports = (sequelize, DataTypes) => {
-	return sequelize.define('managers', {
-		manager_id: {
-			type: DataTypes.STRING,
-			primaryKey: true,
-		},
+	return sequelize.define('youth_coaches', {
 		club: {
 			type: DataTypes.STRING,
 			defaultValue: 'Unemployed',
 		},
-		league_trophies: {
-			type: DataTypes.INTEGER,
-			defaultValue: 0,
+		name: {
+			type: DataTypes.STRING,
 		},
-		cup_trophies: {
+		level: {
 			type: DataTypes.INTEGER,
-			defaultValue: 0,
+		},
+		wage: {
+			type: DataTypes.INTEGER,
 		},
 	}, {
 		timestamps: false,
