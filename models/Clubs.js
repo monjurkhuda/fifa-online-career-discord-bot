@@ -9,6 +9,17 @@ module.exports = (sequelize, DataTypes) => {
 		manager_id: {
 			type: DataTypes.STRING,		
 		},
+		youth_coaches: {
+			type: DataTypes.INTEGER,
+			defaultValue: 0,
+		},
+		youth_facility_level: {
+			type: DataTypes.INTEGER,
+			defaultValue: 0
+		},
+		youth_facilities_rating: {
+			type: DataTypes.INTEGER,
+		},
 		league_trophies: {
 			type: DataTypes.INTEGER,
 			defaultValue: 0,

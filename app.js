@@ -40,7 +40,7 @@ client.once('ready', async () => {
 
 client.on('message', async message => {
 	if (message.author.bot) return;
-	currency.add(message.author.id, 1000);	
+	currency.add(message.author.id, 1000);
 
 	if (!message.content.startsWith(PREFIX)) return;
 	const input = message.content.slice(PREFIX.length).trim();
@@ -66,7 +66,7 @@ client.on('message', async message => {
 
 		message.channel.send(`${target || target.tag} has been assigned as the manager of ${club.name}`);
 
-	} else if (command === 'teaminfo') {
+	} else if (command === 'myteam') {
 		const target = message.mentions.users.first() || message.author;
 		const players = await TransferMarket.findAll({ where: { manager_id: target.id } });
 
@@ -80,9 +80,6 @@ client.on('message', async message => {
 		if (!players.length) {
 			message.channel.send(`${target || target.tag} currently manages no players.`);
 		}
-
-		console.log(`Manager ID: ${players}`);
-		console.log(`Messenger ID: ${target.id}`);
 
 	} /*else if (command === 'transferbalance') {
 		const currentAmount = currency.getBalance(message.author.id);
@@ -124,12 +121,12 @@ ID: ${obj.id}
 		}
 
 	} else if (command === 'playerreport') {
-		const player = await TransferMarket.findOne({ where: { id: { [Op.like]: commandArgs } } });		
+		const player = await TransferMarket.findOne({ where: { id: { [Op.like]: commandArgs } } });
 		if (!player) {
 			message.channel.send('That player doesn\'t exist.');
 		} else if (player.manager_id != message.author.id) {
 			return message.channel.send(`You can only get reports on players contracted to your team. ${player.name} plays for ${player.club}.`);
-		} else {			
+		} else {
 			if (player.loan_club) {
 				message.channel.send(`Name: ${player.name}   Age: ${player.age}
 Loaned to: ${player.loan_club} Loan Until: ${player.loan_end}
@@ -140,7 +137,7 @@ Injured Until (if any): ${player.injured_until}
 Value: ${player.value}€
 Wage: ${player.wage}€
 ID: ${player.id}`)
-				} else {
+			} else {
 				message.channel.send(`Name: ${player.name}   Age: ${player.age}
 Club: ${player.club}
 Position: ${player.position}
@@ -149,15 +146,14 @@ Happiness: ${player.happiness}
 Injured Until (if any): ${player.injured_until}
 Value: ${player.value}€
 Wage: ${player.wage}€
-ID: ${player.id}`)}
-			}		
+ID: ${player.id}`)
+			}
+		}
 
 	} else if (command === 'buyplayer') {
 		const player = await TransferMarket.findOne({ where: { id: { [Op.like]: commandArgs } } });
 		const managerClub = await Clubs.findOne({ where: { manager_id: { [Op.like]: message.author.id } } });
-		let clubBalance = managerClub.balance;
-		console.log(player.manager_id);
-		console.log(message.author.id);
+		let clubBalance = managerClub.balance;		
 		if (!player) { return message.channel.send('That player ID doesn\'t exist.'); }
 		else if (player.value > managerClub.balance) {
 			return message.channel.send(`${player.name} costs ${player.value}€. Unfortunately, you don't have enough funds.`);
@@ -305,22 +301,58 @@ ID: ${player.id}`)}
 		const args = message.content.slice(PREFIX.length).split(/ +/);
 		const youthCoaches = await YouthCoaches.findOne({ where: { id: args[1] } });
 		const managerClub = await Clubs.findOne({ where: { manager_id: { [Op.like]: message.author.id } } });
+		const currentYouthFacilitiesRating = managerClub.youth_facilities_rating;
+		const youthCoachLevel = youthCoaches.level;
+		const numberOfYouthCoaches = managerClub.youth_coaches;
 
 		if (youthCoaches.club != 'Unemployed') {
-			message.channel.send(`${youthCoaches.name} is currently under contract with ${youthCoaches.club}.`);
+			return message.channel.send(`${youthCoaches.name} is currently under contract with ${youthCoaches.club}.`);
 		} else if (youthCoaches.wage > managerClub.balance) {
-			message.channel.send(`${youthCoaches.name} refuses to join ${managerClub.name} as they are currently unable to cover even his weekly wage of ${youthCoaches.wage}€!`);
+			return message.channel.send(`${youthCoaches.name} refuses to join ${managerClub.name} as they are currently unable to cover his weekly wage of ${youthCoaches.wage}€!`);
+		} else if (numberOfYouthCoaches >= 4) {
+			return message.channel.send(`${youthCoaches.name} cannot join ${managerClub.name} as they already have 4 youth coaches!`);
 		} else {
+			await managerClub.update({ youth_facilities_rating: currentYouthFacilitiesRating + youthCoachLevel, youth_coaches: numberOfYouthCoaches + 1 }, { where: { id: args[1] } });
 			await youthCoaches.update({ club: managerClub.name }, { where: { id: args[1] } });
 			message.channel.send(`${youthCoaches.name} signs a youth coaching contract with ${managerClub.name} which will see him net a weekly wage of ${youthCoaches.wage}€!`);
+		}
+
+	} else if (command === 'upgradeyouthfacility') {
+		const managerClub = await Clubs.findOne({ where: { manager_id: { [Op.like]: message.author.id } } });
+		const youthFacilityRating = Number(managerClub.youth_facility_level);
+		const currentYouthFacilitiesRating = Number(managerClub.youth_facilities_rating);
+		let reactor = message.author.id;
+		var youthFacilityReputation = ['neighborhood', 'borough', 'city', 'country', 'continent', 'world'];
+		var upgradeCost = [0, 1000000, 5000000, 10000000, 17000000, 25000000];
+		var clubBalance = managerClub.balance;
+		var upgradeExpense = Number(upgradeCost[youthFacilityRating + 1]);		
+
+		if (youthFacilityRating > 4) {
+			return message.channel.send(`Your youth facility is already a ${youthFacilityReputation[youthFacilityRating]}-renowned institution.`);
+		} else if (clubBalance < upgradeCost[youthFacilityRating + 1]) {
+			message.channel.send(`${managerClub.name} cannot afford an upgrade to a ${youthFacilityReputation[youthFacilityRating + 1]} class facility as they are short of ${upgradeCost[youthFacilityRating + 1]}€`);
+		} else {
+			message.channel.send(`${managerClub.name} has a ${youthFacilityReputation[youthFacilityRating]}-wide youth facility.\nTo confirm the upgrade to a ${youthFacilityReputation[youthFacilityRating + 1]} class facility for ${upgradeCost[youthFacilityRating + 1]}€, please react with 👍 emoji to '!upgradeyouthfacility' command above within 5 minutes.\nTip: Hiring youth coaches is a cheaper and usually faster way of developing your youth players.`);
+			const filter = (reaction, user) => {
+				return reaction.emoji.name === '👍' && user.id === reactor;
+				console.log(user.id, reactor);
+			};
+			const collector = message.createReactionCollector(filter, { time: 1000 * 60 * 5 });
+			collector.on('collect', (reaction, user) => {
+				message.channel.send(`${managerClub.name} have upgraded to a ${youthFacilityReputation[youthFacilityRating + 1]} class youth facility for a whopping ${upgradeCost[youthFacilityRating + 1]}€!`);
+				youthFacilityUpgrade();
+				collector.stop();
+			});
+			async function youthFacilityUpgrade() {
+				await managerClub.update({ youth_facilities_rating: currentYouthFacilitiesRating + 1, youth_facility_level: youthFacilityRating + 1, balance: clubBalance - upgradeExpense }, { manager_id: { [Op.like]: message.author.id } });
+			}
 		}
 
 	} else if (command === 'timetest') {
 		message.channel.send('Hmm. I like the amount you are offering. Let me think about it for 5 seconds.');
 		setTimeout(function () {
-			// use the message's channel (TextChannel) to send a new message
 			message.channel.send("Ok sounds good. Let's make a deal.")
-				.catch(console.error); // add error handling here
+				.catch(console.error);
 		}, 5 * 1000);
 
 	} else if (command === 'result') {
@@ -340,13 +372,13 @@ ID: ${player.id}`)}
 
 	} else if (command === 'createfixtures') {
 		let fixtureDate = function (increment) {
-		var date = new Date();
-		date.setDate(date.getDate() + increment);
-		var dd = String(date.getDate()).padStart(2, '0');
-		var mm = String(date.getMonth() + 1).padStart(2, '0'); //January is 0!
-		var yyyy = date.getFullYear();
-		date = mm + '/' + dd + '/' + yyyy;
-		return date;
+			var date = new Date();
+			date.setDate(date.getDate() + increment);
+			var dd = String(date.getDate()).padStart(2, '0');
+			var mm = String(date.getMonth() + 1).padStart(2, '0'); //January is 0!
+			var yyyy = date.getFullYear();
+			date = mm + '/' + dd + '/' + yyyy;
+			return date;
 		}
 
 		wsone = fixtureDate(0);
@@ -359,19 +391,19 @@ ID: ${player.id}`)}
 		wefour = fixtureDate(28);
 
 		function shuffle(array) {
-		var currentIndex = array.length, temporaryValue, randomIndex;
-		
-		// While there remain elements to shuffle...
-		while (0 !== currentIndex) {
+			var currentIndex = array.length, temporaryValue, randomIndex;
 
-			// Pick a remaining element...
-			randomIndex = Math.floor(Math.random() * currentIndex);
-			currentIndex -= 1;
+			// While there remain elements to shuffle...
+			while (0 !== currentIndex) {
 
-			// And swap it with the current element.
-			temporaryValue = array[currentIndex];
-			array[currentIndex] = array[randomIndex];
-			array[randomIndex] = temporaryValue;
+				// Pick a remaining element...
+				randomIndex = Math.floor(Math.random() * currentIndex);
+				currentIndex -= 1;
+
+				// And swap it with the current element.
+				temporaryValue = array[currentIndex];
+				array[currentIndex] = array[randomIndex];
+				array[randomIndex] = temporaryValue;
 			}
 
 			return array;
@@ -390,7 +422,7 @@ ID: ${player.id}`)}
 			${teamlist[1]} vs ${teamlist[3]}\n
 			${teamlist[2]} vs ${teamlist[0]}`);
 
-	} else if (command === 'dailytasks') {				
+	} else if (command === 'dailytasks') {
 		//NEWS////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 		/*let eventsProbabInterval = [];
@@ -442,7 +474,7 @@ ID: ${player.id}`)}
 			randomInteger = Math.floor(Math.random() * max) + 1;
 			return randomInteger;
 		};*/
-		
+
 		//LoanEnds////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 		var today = new Date();
 		var dd = String(today.getDate()).padStart(2, '0');
@@ -452,33 +484,41 @@ ID: ${player.id}`)}
 
 		const loanEndedPlayer = await TransferMarket.findAll({ where: { loan_end: { [Op.like]: today } } });
 		loanEndedPlayer.forEach(async function (obj) {
-			console.log(`Today: ${today}`);
-			console.log(`Player: ${obj.name}`);
-			console.log(`Today: ${obj.loan_end}`);
 			client.channels.cache.get('724832698161561642').send(`END OF LOAN: ${obj.name} ends his loan with ${obj.loan_club} and returns to ${obj.club}`);
 			await TransferMarket.update({ loan_club: null, loan_end: null }, { where: { id: obj.id } });
 		});
 
 		//YouthTasks//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-		const youthCoaches = await YouthCoaches.findAll({ where: { club: { [Op.ne]: 'Unemployed' } } });
-		if (!youthCoaches.length) {
-			client.channels.cache.get('712423527818723449').send(`The Youth Coaches Association of Europe informed the Daily Inquirer that there is a severe lack of opportunities for youth coaches in the top clubs of Europe.They said that currently, none of the top clubs in Europe employ a youth coach.They lamented the state of the young talents in those clubs and expressed hopes that this predicament will soon be rectified.`);
-		} else {
-			youthCoaches.forEach(async function (obj) {
-				const youthPlayer = await TransferMarket.findAll({ where: { age: { [Op.lte]: 23 } } });
-				youthPlayer.forEach(async function (plobj) {
-					if (plobj.current_rating === plobj.potential_rating) {
-						return console.log(`${plobj.name} reached his full potential of ${plobj.potential_rating}`)
-					} else {
-						plobj.current_rating = plobj.current_rating + obj.level * 0.2;
-						console.log(`${plobj.name} of ID: ${plobj.id}'s rating increased to ${plobj.current_rating}`);
-						await TransferMarket.update({ current_rating: plobj.current_rating }, { where: { id: plobj.id } });
-					}
-				});
-			});
-		}
-	}
+		const youthClub = await Clubs.findAll({ where: { manager_id: { [Op.ne]: null } } });
+		const youthPlayer = await TransferMarket.findAll({ where: { age: { [Op.lte]: 23 } } });
+		
+		youthClub.forEach(async function (obj) {
+			var nameDisplay = obj.name;
+			console.log(nameDisplay);
+			var currentYouthFacilitiesRating = obj.youth_facilities_rating;
+			console.log(currentYouthFacilitiesRating);
 
+			youthPlayer.forEach(async function (plobj) {				
+				if (plobj.current_rating >= plobj.potential_rating) {
+					await TransferMarket.update({ current_rating: plobj.potential_rating }, { where: { id: plobj.id } });
+					return console.log(`${plobj.name} reached his full potential of ${plobj.potential_rating}`);					
+				} else if (obj.name === plobj.club) {
+					if (plobj.current_rating >= plobj.potential_rating) { await TransferMarket.update({ current_rating: plobj.potential_rating }, { where: { id: plobj.id } }); }
+					var nameDisplay = plobj.name;
+					console.log(nameDisplay);
+					var currentPlayerRating = plobj.current_rating;					
+					var newPlayerRating = currentPlayerRating + (currentYouthFacilitiesRating * 0.016);
+					var newPlayerWage = 12 * Math.pow(Math.E, 0.10819778284 * newPlayerRating);
+					var newPlayerWageRounded = Math.floor(newPlayerWage / 500) * 500;
+					var newPlayerValue = (7 / 7300000000000) * Math.pow(newPlayerRating, 10.245);
+					var newPlayerValueRounded = Math.floor(newPlayerValue / 100000) * 100000;
+					await TransferMarket.update({ current_rating: newPlayerRating, wage: newPlayerWageRounded, value: newPlayerValueRounded }, { where: { id: plobj.id } });
+					console.log(`plobj.current_rating: ${plobj.current_rating}     obj.level: ${obj.level}`);
+					console.log(`${plobj.name} of ID: ${plobj.id}'s rating increased to ${plobj.current_rating}`);
+				}
+			});
+		});
+	}
 });
 
 client.login(config.token);
