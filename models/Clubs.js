@@ -6,6 +6,9 @@ module.exports = (sequelize, DataTypes) => {
 		balance: {
 			type: DataTypes.INTEGER,
 		},
+		weekly_expenditure: {
+			type: DataTypes.INTEGER,
+		},
 		manager_id: {
 			type: DataTypes.STRING,		
 		},

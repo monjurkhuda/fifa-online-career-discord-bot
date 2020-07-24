@@ -72,7 +72,7 @@ client.on('message', async message => {
 
 		if (players) {
 			players.forEach(function (obj) {
-				message.channel.send(`${obj.position} > ${obj.name} / ${obj.current_rating}\n`);
+				message.channel.send(`${obj.id}. ${obj.position} > ${obj.name} / ${obj.current_rating}\n`);
 				return;
 			});
 		}
@@ -120,7 +120,7 @@ ID: ${obj.id}
 			});
 		}
 
-	} else if (command === 'playerreport') {
+	} else if (command === 'myplayer') {
 		const player = await TransferMarket.findOne({ where: { id: { [Op.like]: commandArgs } } });
 		if (!player) {
 			message.channel.send('That player doesn\'t exist.');
@@ -153,7 +153,8 @@ ID: ${player.id}`)
 	} else if (command === 'buyplayer') {
 		const player = await TransferMarket.findOne({ where: { id: { [Op.like]: commandArgs } } });
 		const managerClub = await Clubs.findOne({ where: { manager_id: { [Op.like]: message.author.id } } });
-		let clubBalance = managerClub.balance;		
+		let clubBalance = managerClub.balance;
+		let weeklyExpenditure = Number(managerClub.weekly_expenditure);
 		if (!player) { return message.channel.send('That player ID doesn\'t exist.'); }
 		else if (player.value > managerClub.balance) {
 			return message.channel.send(`${player.name} costs ${player.value}€. Unfortunately, you don't have enough funds.`);
@@ -165,7 +166,7 @@ ID: ${player.id}`)
 			message.channel.send(`${player.name} signs for ${managerClub.name} for ${player.value}€!`);
 			client.channels.cache.get('724832698161561642').send(`${player.name} to ${managerClub.name} from ${player.club} for ${player.value}€`);
 			await TransferMarket.update({ manager_id: message.author.id, club: managerClub.name }, { where: { id: commandArgs } });
-			await Clubs.update({ balance: clubBalance - player.value }, { where: { manager_id: message.author.id } });
+			await Clubs.update({ balance: clubBalance - player.value, weekly_expenditure: weeklyExpenditure + player.wage  }, { where: { manager_id: message.author.id } });
 		}
 
 	} else if (command === 'loanplayer') {
@@ -203,6 +204,7 @@ ID: ${player.id}`)
 		const managerClub = await Clubs.findOne({ where: { manager_id: { [Op.like]: message.author.id } } });
 		let clubBalance = managerClub.balance;
 		let outPlayerValue = outPlayer.value * 0.95;
+		let weeklyExpenditure = Number(managerClub.weekly_expenditure);
 		if (outPlayer.manager_id != message.author.id) {
 			return message.channel.send(`Cheeky! ${outPlayer.name} does not belong to your team ^_^`);
 		} else if (inPlayer.club === 'Free Agent') {
@@ -212,24 +214,25 @@ ID: ${player.id}`)
 		} else if (inPlayer.loan_club) {
 			return message.channel.send(`${inPlayer.name} is currently on loan in ${inPlayer.loan_club} until ${inPlayer.loan_end}.`);
 		} else if ((outPlayerValue + managerClub.balance) < inPlayer.value) {
-			message.channel.send(`${inPlayer.name} is valued at ${inPlayer.value}. Unfortunately, your balance is currently too low to make up the difference in the player swap.`);
+			return message.channel.send(`${inPlayer.name} is valued at ${inPlayer.value}. Unfortunately, your balance is currently too low to make up the difference in the player swap.`);
 		} else if (inPlayer.value > outPlayerValue) {
 			message.channel.send(`${inPlayer.name} joins ${managerClub.name} in a swap deal with ${inPlayer.club} for ${outPlayer.name}. ${managerClub.name} pays ${inPlayer.value - outPlayerValue}€ to ${inPlayer.club} as part of the deal.`);
 			client.channels.cache.get('724832698161561642').send(`SWAP: ${inPlayer.name} to ${managerClub.name} from ${inPlayer.club} for ${inPlayer.value - outPlayerValue}€ plus ${outPlayer.name}`);
 			await TransferMarket.update({ manager_id: null, club: inPlayer.club }, { where: { id: args[2] } });
 			await TransferMarket.update({ manager_id: message.author.id, club: managerClub.name }, { where: { id: args[1] } });
-			await Clubs.update({ balance: clubBalance - (inPlayer.value - outPlayerValue) }, { where: { manager_id: message.author.id } });
+			await Clubs.update({ balance: clubBalance - (inPlayer.value - outPlayerValue), weekly_expenditure: weeklyExpenditure + inPlayer.wage - outPlayer.wage }, { where: { manager_id: message.author.id } });
 		} else if (outPlayerValue > inPlayer.value) {
 			message.channel.send(`${inPlayer.name} joins ${managerClub.name} in a swap deal with ${inPlayer.club} for ${outPlayer.name}. ${managerClub.name} receives ${outPlayerValue - inPlayer.value}€ from ${inPlayer.club} as part of the deal.`);
 			client.channels.cache.get('724832698161561642').send(`SWAP: ${inPlayer.name} plus ${outPlayerValue - inPlayer.value}€ to ${managerClub.name} from ${inPlayer.club} for ${outPlayer.name}`);
 			await TransferMarket.update({ manager_id: null, club: inPlayer.club }, { where: { id: args[2] } });
 			await TransferMarket.update({ manager_id: message.author.id, club: managerClub.name }, { where: { id: args[1] } });
-			await Clubs.update({ balance: clubBalance + (outPlayerValue - inPlayer.value) }, { where: { manager_id: message.author.id } });
+			await Clubs.update({ balance: clubBalance + (outPlayerValue - inPlayer.value), weekly_expenditure: weeklyExpenditure + inPlayer.wage - outPlayer.wage }, { where: { manager_id: message.author.id } });
 		} else if (outPlayerValue === inPlayer.value) {
 			message.channel.send(`${inPlayer.name} joins ${managerClub.name} in a straight swap deal with ${inPlayer.club} for ${outPlayer.name}.`);
 			client.channels.cache.get('724832698161561642').send(`SWAP: ${inPlayer.name} to ${managerClub.name} from ${inPlayer.club} for ${outPlayer.name}`);
 			await TransferMarket.update({ manager_id: null, club: inPlayer.club }, { where: { id: args[2] } });
 			await TransferMarket.update({ manager_id: message.author.id, club: managerClub.name }, { where: { id: args[1] } });
+			await Clubs.update({ weekly_expenditure: weeklyExpenditure + inPlayer.wage - outPlayer.wage }, { where: { manager_id: message.author.id } });
 		}
 
 	} else if (command === 'releaseplayer') {
@@ -237,12 +240,13 @@ ID: ${player.id}`)
 		const player = await TransferMarket.findOne({ where: { id: { [Op.like]: args[1] } } });
 		const managerClub = await Clubs.findOne({ where: { manager_id: { [Op.like]: message.author.id } } });
 		let clubBalance = managerClub.balance;
+		let weeklyExpenditure = Number(managerClub.weekly_expenditure);
 		let releasedPlayerValue = player.value * 0.95;
 		console.log(`${managerClub.manager_id}       ${message.author.id}`);
 		if (player.club === managerClub.name) {
 			message.channel.send(`${player.name} was released by ${managerClub.name} to be a Free Agent. The club was compensated with ${releasedPlayerValue}€`);
 			client.channels.cache.get('724832698161561642').send(`RELEASED: ${player.name} released by ${managerClub.name}. ${managerClub.name} compensated with ${releasedPlayerValue}€`);
-			await Clubs.update({ balance: clubBalance + releasedPlayerValue }, { where: { manager_id: message.author.id } });
+			await Clubs.update({ balance: clubBalance + releasedPlayerValue, weekly_expenditure: weeklyExpenditure - player.wage  }, { where: { manager_id: message.author.id } });
 			await TransferMarket.update({ manager_id: null, club: 'Free Agent' }, { where: { id: args[1] } });
 		} else {
 			return message.channel.send(`${player.name} is not a ${managerClub.name} player.`);
@@ -257,10 +261,12 @@ ID: ${player.id}`)
 		let sellerClubBalance = sellerClub.balance;
 		let buyerClubBalance = buyerClub.balance;
 		let sellingPrice = Number(args[2]);
+		let sellerWeeklyExpenditure = Number(sellerClub.weekly_expenditure);
+		let buyerWeeklyExpenditure = Number(buyerClub.weekly_expenditure);
 
 		if (sellingPrice <= buyerClubBalance) {
 			if (player.club === sellerClub.name) {
-				message.channel.send(`${sellerClub.name} is offering ${player.name} to ${buyerClub.name} for a fee of ${sellingPrice}€. Please react with 👍 emoji to the offer within 5 minutes to confirm the deal.\n`);
+				message.channel.send(`${sellerClub.name} is offering ${player.name} to ${buyerClub.name} for a fee of ${sellingPrice}€. Please react with 👍 emoji to the offer above^ within 5 minutes to confirm the deal.\n`);
 
 				const filter = (reaction, user) => {
 					return reaction.emoji.name === '👍' && user.id === buyer.id;
@@ -273,8 +279,8 @@ ID: ${player.id}`)
 					collector.stop();
 				});
 				async function sellUpdate() {
-					await Clubs.update({ balance: sellerClubBalance + sellingPrice }, { where: { manager_id: sellerClub.manager_id } });
-					await Clubs.update({ balance: buyerClubBalance - sellingPrice }, { where: { manager_id: buyerClub.manager_id } });
+					await Clubs.update({ balance: sellerClubBalance + sellingPrice, weekly_expenditure: sellerWeeklyExpenditure - player.wage }, { where: { manager_id: sellerClub.manager_id } });
+					await Clubs.update({ balance: buyerClubBalance - sellingPrice, weekly_expenditure: buyerWeeklyExpenditure + player.wage }, { where: { manager_id: buyerClub.manager_id } });
 					await TransferMarket.update({ manager_id: buyerClub.manager_id, club: buyerClub.name }, { where: { id: args[1] } });
 				}
 			} else {
@@ -304,6 +310,7 @@ ID: ${player.id}`)
 		const currentYouthFacilitiesRating = managerClub.youth_facilities_rating;
 		const youthCoachLevel = youthCoaches.level;
 		const numberOfYouthCoaches = managerClub.youth_coaches;
+		let weeklyExpenditure = Number(managerClub.weekly_expenditure);
 
 		if (youthCoaches.club != 'Unemployed') {
 			return message.channel.send(`${youthCoaches.name} is currently under contract with ${youthCoaches.club}.`);
@@ -312,9 +319,26 @@ ID: ${player.id}`)
 		} else if (numberOfYouthCoaches >= 4) {
 			return message.channel.send(`${youthCoaches.name} cannot join ${managerClub.name} as they already have 4 youth coaches!`);
 		} else {
-			await managerClub.update({ youth_facilities_rating: currentYouthFacilitiesRating + youthCoachLevel, youth_coaches: numberOfYouthCoaches + 1 }, { where: { id: args[1] } });
+			await managerClub.update({ youth_facilities_rating: currentYouthFacilitiesRating + youthCoachLevel, youth_coaches: numberOfYouthCoaches + 1, weekly_expenditure: weeklyExpenditure + youthCoaches.wage }, { manager_id: { [Op.like]: message.author.id } });
 			await youthCoaches.update({ club: managerClub.name }, { where: { id: args[1] } });
-			message.channel.send(`${youthCoaches.name} signs a youth coaching contract with ${managerClub.name} which will see him net a weekly wage of ${youthCoaches.wage}€!`);
+			message.channel.send(`${youthCoaches.name} signs a youth coaching contract with ${managerClub.name} which will see him net a weekly wage of ${youthCoaches.wage}€.`);
+		}
+
+	} else if (command === 'fireyouthcoach') {
+		const args = message.content.slice(PREFIX.length).split(/ +/);
+		const youthCoaches = await YouthCoaches.findOne({ where: { id: args[1] } });
+		const managerClub = await Clubs.findOne({ where: { manager_id: { [Op.like]: message.author.id } } });
+		const currentYouthFacilitiesRating = managerClub.youth_facilities_rating;
+		const youthCoachLevel = youthCoaches.level;
+		const numberOfYouthCoaches = managerClub.youth_coaches;
+		let weeklyExpenditure = Number(managerClub.weekly_expenditure);
+
+		if (youthCoaches.club != managerClub.name) {
+			return message.channel.send(`What are you smoking boss? ${youthCoaches.name} is not under contract with ${managerClub.name}!`);
+		} else {
+			await managerClub.update({ youth_facilities_rating: currentYouthFacilitiesRating - youthCoachLevel, youth_coaches: numberOfYouthCoaches - 1, weekly_expenditure: weeklyExpenditure - youthCoaches.wage }, { manager_id: { [Op.like]: message.author.id } });
+			await youthCoaches.update({ club: 'Unemployed' }, { where: { id: args[1] } });
+			message.channel.send(`Youth coach ${youthCoaches.name} is fired by ${managerClub.name}.`);
 		}
 
 	} else if (command === 'upgradeyouthfacility') {
@@ -332,7 +356,7 @@ ID: ${player.id}`)
 		} else if (clubBalance < upgradeCost[youthFacilityRating + 1]) {
 			message.channel.send(`${managerClub.name} cannot afford an upgrade to a ${youthFacilityReputation[youthFacilityRating + 1]} class facility as they are short of ${upgradeCost[youthFacilityRating + 1]}€`);
 		} else {
-			message.channel.send(`${managerClub.name} has a ${youthFacilityReputation[youthFacilityRating]}-wide youth facility.\nTo confirm the upgrade to a ${youthFacilityReputation[youthFacilityRating + 1]} class facility for ${upgradeCost[youthFacilityRating + 1]}€, please react with 👍 emoji to '!upgradeyouthfacility' command above within 5 minutes.\nTip: Hiring youth coaches is a cheaper and usually faster way of developing your youth players.`);
+			message.channel.send(`${managerClub.name} has a ${youthFacilityReputation[youthFacilityRating]}-wide youth facility.\nTo confirm the upgrade to a ${youthFacilityReputation[youthFacilityRating + 1]} class facility for ${upgradeCost[youthFacilityRating + 1]}€, please react with 👍 emoji to '!upgradeyouthfacility' command above^ within 5 minutes.\nTip: Hiring youth coaches is a cheaper and usually faster way of developing your youth players.`);
 			const filter = (reaction, user) => {
 				return reaction.emoji.name === '👍' && user.id === reactor;
 				console.log(user.id, reactor);
