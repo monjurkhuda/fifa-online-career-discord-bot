@@ -3,6 +3,9 @@ module.exports = (sequelize, DataTypes) => {
 		name: {
 			type: DataTypes.STRING,
 		},
+		short_name: {
+			type: DataTypes.STRING,
+		},
 		balance: {
 			type: DataTypes.INTEGER,
 		},

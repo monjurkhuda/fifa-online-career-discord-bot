@@ -56,19 +56,40 @@ client.on('message', async message => {
 		const target = message.mentions.users.first() || message.author;
 		const splitArgs = commandArgs.split(' ');
 
-		console.log(splitArgs[1].toString());
+		console.log(splitArgs);
 
-		const club = await Clubs.findOne({ where: { name: { [Op.like]: splitArgs[1] } } });
-		if (!club) return message.channel.send('Please check the spelling of the club name. We use specific, non-spaced, short nicknames.');
+		if (splitArgs.length > 3) {
+			const club = await Clubs.findOne({ where: { name: { [Op.like]: '%' + splitArgs[1] + ' ' + splitArgs[2] + ' ' + splitArgs[3] + '%' } } });
+			if (!club) return message.channel.send('Please use official club name as seen on Sofifa.com');
 
-		await Clubs.update({ manager_id: target.id }, { where: { name: { [Op.like]: splitArgs[1] } } });
-		await Managers.update({ club: club.name }, { where: { manager_id: { [Op.like]: target.id } } });
+			await Clubs.update({ manager_id: target.id }, { where: { name: { [Op.like]: commandArgs } } });
+			await Managers.update({ club: club.name }, { where: { manager_id: { [Op.like]: target.id } } });
 
-		message.channel.send(`${target || target.tag} has been assigned as the manager of ${club.name}`);
+			message.channel.send(`${target || target.tag} has been assigned as the manager of ${club.name}`);
+		} else if (splitArgs.length > 2) {
+			const club = await Clubs.findOne({ where: { name: { [Op.like]: '%' + splitArgs[1] + ' ' + splitArgs[2] + '%' } } });
+			if (!club) return message.channel.send('Please use official club name as seen on Sofifa.com');
+
+			await Clubs.update({ manager_id: target.id }, { where: { name: { [Op.like]: commandArgs } } });
+			await Managers.update({ club: club.name }, { where: { manager_id: { [Op.like]: target.id } } });
+
+			message.channel.send(`${target || target.tag} has been assigned as the manager of ${club.name}`);
+		} else if (splitArgs.length > 1) {
+			const club = await Clubs.findOne({ where: { name: { [Op.like]: '%' + splitArgs[1] + '%' } } });
+			if (!club) return message.channel.send('Please use official club name as seen on Sofifa.com');
+
+			await Clubs.update({ manager_id: target.id }, { where: { name: { [Op.like]: commandArgs } } });
+			await Managers.update({ club: club.name }, { where: { manager_id: { [Op.like]: target.id } } });
+
+			message.channel.send(`${target || target.tag} has been assigned as the manager of ${club.name}`);
+		} else {
+			return message.channel.send('Please use official club name as seen on Sofifa.com');
+			}
 
 	} else if (command === 'myteam') {
-		const target = message.mentions.users.first() || message.author;
-		const players = await TransferMarket.findAll({ where: { manager_id: target.id } });
+		const managerClub = await Clubs.findOne({ where: { manager_id: { [Op.like]: message.author.id } } });
+		const players = await TransferMarket.findAll({ where: { manager_id: managerClub.manager_id } });
+		const loanedPlayers = await TransferMarket.findAll({ where: { loan_club: managerClub.name } });
 
 		if (players) {
 			players.forEach(function (obj) {
@@ -77,8 +98,15 @@ client.on('message', async message => {
 			});
 		}
 
-		if (!players.length) {
-			message.channel.send(`${target || target.tag} currently manages no players.`);
+		if (loanedPlayers) {
+			loanedPlayers.forEach(function (obj) {
+				message.channel.send(`${obj.id}. ${obj.position} > ${obj.name} / ${obj.current_rating} (Loaned)\n`);
+				return;
+			});
+		}
+
+		if (!players.length && !loanedPlayers.length) {
+			message.channel.send(`${managerClub.name} currently has no players!`);
 		}
 
 	} /*else if (command === 'transferbalance') {
@@ -95,27 +123,25 @@ client.on('message', async message => {
 		return message.channel.send(`Successfully transferred ${transferAmount}€ to ${transferTarget.tag}. Your current balance is ${currency.getBalance(message.author.id)}€`);
 
 	}*/ else if (command === 'findplayer') {
-		const player = await TransferMarket.findAll({ where: { name: { [Op.like]: commandArgs } } });
+		const player = await TransferMarket.findAll({ where: { name: { [Op.like]: '%' + commandArgs + '%' } }, limit: 5 });
 		if (!player.length) return message.channel.send('That player doesn\'t exist.');
 		if (player) {
 			player.forEach(function (obj) {
 				if (obj.loan_club) {
-					message.channel.send(`Name: ${obj.name}   Age: ${obj.age}
-Loaned to: ${obj.loan_club} Loan Until: ${obj.loan_end}
+					message.channel.send(`${obj.id}. ${obj.position}> ${obj.name} / ${obj.current_rating}
+Age: ${obj.age}
+Loaned to: ${obj.loan_club} until: ${obj.loan_end}
 Owner Club: ${obj.club}
-Position: ${obj.position}   Rating: ${obj.current_rating}
 Value: ${obj.value}€
 Wage: ${obj.wage}€
-ID: ${obj.id}
---^--^--^--^--^--^--^--`)
+_`)
 				} else {
-					message.channel.send(`Name: ${obj.name}   Age: ${obj.age}
+					message.channel.send(`${obj.id}. ${obj.position}> ${obj.name} / ${obj.current_rating}
+Age: ${obj.age}
 Club: ${obj.club}
-Position: ${obj.position}   Rating: ${obj.current_rating}
 Value: ${obj.value}€
 Wage: ${obj.wage}€
-ID: ${obj.id}
---^--^--^--^--^--^--^--`)
+_`)
 				}
 			});
 		}
@@ -157,16 +183,16 @@ ID: ${player.id}`)
 		let weeklyExpenditure = Number(managerClub.weekly_expenditure);
 		if (!player) { return message.channel.send('That player ID doesn\'t exist.'); }
 		else if (player.value > managerClub.balance) {
-			return message.channel.send(`${player.name} costs ${player.value}€. Unfortunately, you don't have enough funds.`);
+			message.channel.send(`${player.name} costs ${player.value}€. Unfortunately, you don't have enough funds.`);
 		} else if (player.manager_id) {
-			return message.channel.send(`Please make a formal enquiry to ${player.club} Manager.`);
+			message.channel.send(`Please make a formal enquiry to ${player.club} manager.`);
 		} else if (player.loan_club) {
-			return message.channel.send(`${player.name} is currently on loan in ${player.loan_club} until ${player.loan_end}.`);
+			message.channel.send(`${player.name} is currently on loan in ${player.loan_club} until ${player.loan_end}.`);
 		} else {
 			message.channel.send(`${player.name} signs for ${managerClub.name} for ${player.value}€!`);
 			client.channels.cache.get('724832698161561642').send(`${player.name} to ${managerClub.name} from ${player.club} for ${player.value}€`);
 			await TransferMarket.update({ manager_id: message.author.id, club: managerClub.name }, { where: { id: commandArgs } });
-			await Clubs.update({ balance: clubBalance - player.value, weekly_expenditure: weeklyExpenditure + player.wage  }, { where: { manager_id: message.author.id } });
+			await Clubs.update({ balance: clubBalance - player.value, weekly_expenditure: weeklyExpenditure + player.wage }, { where: { manager_id: message.author.id } });
 		}
 
 	} else if (command === 'loanplayer') {
@@ -246,7 +272,7 @@ ID: ${player.id}`)
 		if (player.club === managerClub.name) {
 			message.channel.send(`${player.name} was released by ${managerClub.name} to be a Free Agent. The club was compensated with ${releasedPlayerValue}€`);
 			client.channels.cache.get('724832698161561642').send(`RELEASED: ${player.name} released by ${managerClub.name}. ${managerClub.name} compensated with ${releasedPlayerValue}€`);
-			await Clubs.update({ balance: clubBalance + releasedPlayerValue, weekly_expenditure: weeklyExpenditure - player.wage  }, { where: { manager_id: message.author.id } });
+			await Clubs.update({ balance: clubBalance + releasedPlayerValue, weekly_expenditure: weeklyExpenditure - player.wage }, { where: { manager_id: message.author.id } });
 			await TransferMarket.update({ manager_id: null, club: 'Free Agent' }, { where: { id: args[1] } });
 		} else {
 			return message.channel.send(`${player.name} is not a ${managerClub.name} player.`);
@@ -299,7 +325,7 @@ ID: ${player.id}`)
 			message.channel.send('Use command: !findyouthcoach #. Replace # with with the level of youth coach you want to search for (1 to 5).');
 		} else if (youthCoaches) {
 			youthCoaches.forEach(function (obj) {
-				message.channel.send(`Name: ${obj.name}\nClub: ${obj.club}\nLevel: ${obj.level}\nWage: ${obj.wage}€\nID: ${obj.id}\n--^--^--^--^--^--^--^--`);
+				message.channel.send(`${obj.id}. ${obj.name} (Level: ${obj.level})\nClub: ${obj.club}\nWage: ${obj.wage}€\n_`);
 			});
 		}
 
@@ -349,7 +375,7 @@ ID: ${player.id}`)
 		var youthFacilityReputation = ['neighborhood', 'borough', 'city', 'country', 'continent', 'world'];
 		var upgradeCost = [0, 1000000, 5000000, 10000000, 17000000, 25000000];
 		var clubBalance = managerClub.balance;
-		var upgradeExpense = Number(upgradeCost[youthFacilityRating + 1]);		
+		var upgradeExpense = Number(upgradeCost[youthFacilityRating + 1]);
 
 		if (youthFacilityRating > 4) {
 			return message.channel.send(`Your youth facility is already a ${youthFacilityReputation[youthFacilityRating]}-renowned institution.`);
@@ -372,6 +398,48 @@ ID: ${player.id}`)
 			}
 		}
 
+	} else if (command === 'scoutplayer') {
+		const managerClub = await Clubs.findOne({ where: { manager_id: { [Op.like]: message.author.id } } });
+		var clubBalance = Number(managerClub.balance);
+		const args = message.content.slice(PREFIX.length).split(/ +/);
+		var playerFound = false;
+		var playerPosition = args[1];
+		var scoutRange = 4;
+		console.log(playerPosition);
+		if (!((playerPosition === 'GK') || (playerPosition === 'RB') || (playerPosition === 'CB') || (playerPosition === 'LB')
+			|| (playerPosition === 'CDM') || (playerPosition === 'RM') || (playerPosition === 'CM') || (playerPosition === 'LM')
+			|| (playerPosition === 'CAM') || (playerPosition === 'RW') || (playerPosition === 'ST') || (playerPosition === 'LW')))
+		{ return message.channel.send(`Please enter a valid player position.\nPositions: GK, RB, CB, LB, CDM, RM, CM, LM, CAM, RW, ST, LW.`) }
+
+		if (playerPosition) {
+			console.log(args[1]);
+			if (clubBalance < 2000000) { return message.channel.send(`Unfortunately, ${managerClub.name} cannot afford the 2 Million € required for this scouting mission.`) };
+			while (playerFound === false) {
+				var randomId = Math.floor(Math.random() * 18280);
+				console.log(randomId);
+				const youthPlayer = await TransferMarket.findOne({ where: { age: { [Op.lte]: 23 }, position: playerPosition, id: randomId } });				
+				if (youthPlayer != null) {
+					if (youthPlayer.original_eightyfive_plus === 1) {
+						return message.channel.send(`${youthPlayer.name} is a known wonderkid and has a potential of ${youthPlayer.potential_rating}. ${managerClub.name} won't be charged for this scouting mission, since the player is very well known.`);
+					}
+					var rangeBefore = Math.floor(Math.random() * scoutRange);
+					message.channel.send(`Potential Rating: ${youthPlayer.potential_rating - rangeBefore} to ${youthPlayer.potential_rating - rangeBefore + scoutRange}
+${youthPlayer.id}. ${youthPlayer.position}> ${youthPlayer.name} / ${youthPlayer.current_rating}
+Age: ${youthPlayer.age}
+Club: ${youthPlayer.club}
+Value: ${youthPlayer.value}€
+Wage: ${youthPlayer.wage}€
+
+This scout report cost ${managerClub.name} 2 Million €.`);
+
+					playerFound = true;
+				}
+			}
+			await Clubs.update({ balance: clubBalance - 2000000 }, { where: { manager_id: message.author.id } });
+		} else {
+			return message.channel.send('Use command !scoutyouthplayer <position>\nReplace <position> with position of youth player you want to scout.\nCost of scouting: 2 Million €');
+		}
+
 	} else if (command === 'timetest') {
 		message.channel.send('Hmm. I like the amount you are offering. Let me think about it for 5 seconds.');
 		setTimeout(function () {
@@ -383,16 +451,21 @@ ID: ${player.id}`)
 		const args = message.content.slice(PREFIX.length).split(/ +/);
 		console.log(args);
 		if (args[1] === 'league') {
-			message.channel.send(
-				`Sure the score was ${args[2]} ${args[3]} : ${args[6]} ${args[5]}?\nReply Y to confirm.`);
 
-			client.on('message', async resultResponse => {
-				if (resultResponse.content === 'Y') {
+			message.channel.send(`Sure the score was ${args[2]} ${args[3]} : ${args[6]} ${args[5]}?\nReply Y within 10 seconds to confirm.`);
+			
+			const collector = new Discord.MessageCollector(message.channel, m => m.author.id === message.author.id, { max: 1, time: 10000 });
+			console.log(collector)
+			collector.on('collect', message => {
+				if (message.content == "Y") {
+
 					if (args[3] > args[5]) { message.channel.send(`5 million to ${args[2]} for win & 2 million to ${args[6]} for the loss.`); }
 					else { message.channel.send(`5 million to ${args[6]} for win & 2 million to ${args[2]} for the loss.`); }
+
 				} else { return; }
 			});
-		};
+		}
+
 
 	} else if (command === 'createfixtures') {
 		let fixtureDate = function (increment) {
@@ -515,22 +588,22 @@ ID: ${player.id}`)
 		//YouthTasks//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 		const youthClub = await Clubs.findAll({ where: { manager_id: { [Op.ne]: null } } });
 		const youthPlayer = await TransferMarket.findAll({ where: { age: { [Op.lte]: 23 } } });
-		
+
 		youthClub.forEach(async function (obj) {
 			var nameDisplay = obj.name;
 			console.log(nameDisplay);
 			var currentYouthFacilitiesRating = obj.youth_facilities_rating;
 			console.log(currentYouthFacilitiesRating);
 
-			youthPlayer.forEach(async function (plobj) {				
+			youthPlayer.forEach(async function (plobj) {
 				if (plobj.current_rating >= plobj.potential_rating) {
 					await TransferMarket.update({ current_rating: plobj.potential_rating }, { where: { id: plobj.id } });
-					return console.log(`${plobj.name} reached his full potential of ${plobj.potential_rating}`);					
+					return console.log(`${plobj.name} reached his full potential of ${plobj.potential_rating}`);
 				} else if (obj.name === plobj.club) {
 					if (plobj.current_rating >= plobj.potential_rating) { await TransferMarket.update({ current_rating: plobj.potential_rating }, { where: { id: plobj.id } }); }
 					var nameDisplay = plobj.name;
 					console.log(nameDisplay);
-					var currentPlayerRating = plobj.current_rating;					
+					var currentPlayerRating = plobj.current_rating;
 					var newPlayerRating = currentPlayerRating + (currentYouthFacilitiesRating * 0.016);
 					var newPlayerWage = 12 * Math.pow(Math.E, 0.10819778284 * newPlayerRating);
 					var newPlayerWageRounded = Math.floor(newPlayerWage / 500) * 500;
