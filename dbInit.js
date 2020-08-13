@@ -18,6 +18,8 @@ sequelize.import('models/Results');
 sequelize.import('models/YouthFacilities');
 const Clubs = sequelize.import('models/Clubs');
 const YouthCoaches = sequelize.import('models/YouthCoaches');
+const LeagueTable = sequelize.import('models/LeagueTable');
+const Meta = sequelize.import('models/Meta');
 
 const force = process.argv.includes('--force') || process.argv.includes('-f');
 
@@ -28,6 +30,17 @@ sequelize.sync({ force }).then(async () => {
 		Clubs.upsert({ name: 'Manchester City', short_name: 'ManCity', balance: 900000000 }),
 		Clubs.upsert({ name: 'Real Madrid', short_name: 'Madrid', balance: 900000000 }),
 		Clubs.upsert({ name: 'FC Barcelona', short_name: 'Barcelona', balance: 900000000 }),
+		Clubs.upsert({ name: 'Inter', short_name: 'Inter', balance: 900000000 }),
+		Clubs.upsert({ name: 'Juventus', short_name: 'Juventus', balance: 900000000 }),
+		Clubs.upsert({ name: 'Paris Saint-Germain', short_name: 'PSG', balance: 900000000 }),
+		Clubs.upsert({ name: 'FC Bayern Munchen', short_name: 'Bayern', balance: 900000000 }),
+		Clubs.upsert({ name: 'Atletico Madrid', short_name: 'Atletico', balance: 900000000 }),
+		Clubs.upsert({ name: 'Tottenham Hotspur', short_name: 'Tottenham', balance: 900000000 }),
+		Clubs.upsert({ name: 'Borussia Dortmund', short_name: 'Dortmund', balance: 900000000 }),
+		Clubs.upsert({ name: 'Chelsea', short_name: 'Chelsea', balance: 900000000 }),
+		Clubs.upsert({ name: 'Arsenal', short_name: 'Arsenal', balance: 900000000 }),
+		Clubs.upsert({ name: 'Milan', short_name: 'Milan', balance: 900000000 }),
+
 		YouthCoaches.upsert({ name: 'Alex Ferguson', level: 5, wage: 500000 }),
 		YouthCoaches.upsert({ name: 'Matt Busby', level: 5, wage: 500000 }),
 		YouthCoaches.upsert({ name: 'Bob Paisley', level: 5, wage: 500000 }),
@@ -47,7 +60,25 @@ sequelize.sync({ force }).then(async () => {
 		YouthCoaches.upsert({ name: 'Sam Allardyce', level: 1, wage: 100000 }),
 		YouthCoaches.upsert({ name: 'David Moyes', level: 1, wage: 100000 }),
 		YouthCoaches.upsert({ name: 'Alan Pardew', level: 1, wage: 100000 }),
-		YouthCoaches.upsert({ name: 'Unai Emery', level: 1, wage: 100000 })
+		YouthCoaches.upsert({ name: 'Unai Emery', level: 1, wage: 100000 }),
+
+		LeagueTable.upsert({ name: 'Manchester United', short_name: 'ManUtd' }),
+		LeagueTable.upsert({ name: 'Liverpool', short_name: 'Liverpool' }),
+		LeagueTable.upsert({ name: 'Manchester City', short_name: 'ManCity' }),
+		LeagueTable.upsert({ name: 'Real Madrid', short_name: 'Madrid' }),
+		LeagueTable.upsert({ name: 'FC Barcelona', short_name: 'Barcelona' }),
+		LeagueTable.upsert({ name: 'Inter', short_name: 'Inter' }),
+		LeagueTable.upsert({ name: 'Juventus', short_name: 'Juventus' }),
+		LeagueTable.upsert({ name: 'Paris Saint-Germain', short_name: 'PSG' }),
+		LeagueTable.upsert({ name: 'FC Bayern Munchen', short_name: 'Bayern' }),
+		LeagueTable.upsert({ name: 'Atletico Madrid', short_name: 'Atletico' }),
+		LeagueTable.upsert({ name: 'Tottenham Hotspur', short_name: 'Tottenham' }),
+		LeagueTable.upsert({ name: 'Borussia Dortmund', short_name: 'Dortmund' }),
+		LeagueTable.upsert({ name: 'Chelsea', short_name: 'Chelsea' }),
+		LeagueTable.upsert({ name: 'Arsenal', short_name: 'Arsenal' }),
+		LeagueTable.upsert({ name: 'Milan', short_name: 'Milan' }),
+
+		Meta.upsert({ season: 1 })
 	];
 	await Promise.all(init);
 	console.log('Database synced');

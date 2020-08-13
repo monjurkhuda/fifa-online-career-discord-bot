@@ -18,5 +18,7 @@ const Results = sequelize.import('models/Results');
 const Clubs = sequelize.import('models/Clubs');
 const YouthFacilities = sequelize.import('models/YouthFacilities');
 const YouthCoaches = sequelize.import('models/YouthCoaches');
+const LeagueTable = sequelize.import('models/LeagueTable');
+const Meta = sequelize.import('models/Meta');
 
-module.exports = { Managers, TransferMarket, Results, Clubs, YouthFacilities, YouthCoaches };
+module.exports = { Managers, TransferMarket, Results, Clubs, YouthFacilities, YouthCoaches, LeagueTable, Meta };

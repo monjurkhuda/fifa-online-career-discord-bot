@@ -2,7 +2,7 @@
 const Discord = require('discord.js');
 
 const client = new Discord.Client();
-const { Managers, TransferMarket, Results, YouthFacilities, YouthCoaches, Clubs } = require('./dbObjects');
+const { Managers, TransferMarket, Results, YouthFacilities, YouthCoaches, Clubs, LeagueTable, Meta } = require('./dbObjects');
 const { Op } = require('sequelize');
 const currency = new Discord.Collection();
 const PREFIX = '!';
@@ -62,7 +62,7 @@ client.on('message', async message => {
 			const club = await Clubs.findOne({ where: { name: { [Op.like]: '%' + splitArgs[1] + ' ' + splitArgs[2] + ' ' + splitArgs[3] + '%' } } });
 			if (!club) return message.channel.send('Please use official club name as seen on Sofifa.com');
 
-			await Clubs.update({ manager_id: target.id }, { where: { name: { [Op.like]: commandArgs } } });
+			await Clubs.update({ manager_id: target.id }, { where: { name: { [Op.like]: club.name } } });
 			await Managers.update({ club: club.name }, { where: { manager_id: { [Op.like]: target.id } } });
 
 			message.channel.send(`${target || target.tag} has been assigned as the manager of ${club.name}`);
@@ -70,7 +70,7 @@ client.on('message', async message => {
 			const club = await Clubs.findOne({ where: { name: { [Op.like]: '%' + splitArgs[1] + ' ' + splitArgs[2] + '%' } } });
 			if (!club) return message.channel.send('Please use official club name as seen on Sofifa.com');
 
-			await Clubs.update({ manager_id: target.id }, { where: { name: { [Op.like]: commandArgs } } });
+			await Clubs.update({ manager_id: target.id }, { where: { name: { [Op.like]: club.name } } });
 			await Managers.update({ club: club.name }, { where: { manager_id: { [Op.like]: target.id } } });
 
 			message.channel.send(`${target || target.tag} has been assigned as the manager of ${club.name}`);
@@ -78,13 +78,13 @@ client.on('message', async message => {
 			const club = await Clubs.findOne({ where: { name: { [Op.like]: '%' + splitArgs[1] + '%' } } });
 			if (!club) return message.channel.send('Please use official club name as seen on Sofifa.com');
 
-			await Clubs.update({ manager_id: target.id }, { where: { name: { [Op.like]: commandArgs } } });
+			await Clubs.update({ manager_id: target.id }, { where: { name: { [Op.like]: club.name } } });
 			await Managers.update({ club: club.name }, { where: { manager_id: { [Op.like]: target.id } } });
 
 			message.channel.send(`${target || target.tag} has been assigned as the manager of ${club.name}`);
 		} else {
 			return message.channel.send('Please use official club name as seen on Sofifa.com');
-			}
+		}
 
 	} else if (command === 'myteam') {
 		const managerClub = await Clubs.findOne({ where: { manager_id: { [Op.like]: message.author.id } } });
@@ -408,8 +408,7 @@ ID: ${player.id}`)
 		console.log(playerPosition);
 		if (!((playerPosition === 'GK') || (playerPosition === 'RB') || (playerPosition === 'CB') || (playerPosition === 'LB')
 			|| (playerPosition === 'CDM') || (playerPosition === 'RM') || (playerPosition === 'CM') || (playerPosition === 'LM')
-			|| (playerPosition === 'CAM') || (playerPosition === 'RW') || (playerPosition === 'ST') || (playerPosition === 'LW')))
-		{ return message.channel.send(`Please enter a valid player position.\nPositions: GK, RB, CB, LB, CDM, RM, CM, LM, CAM, RW, ST, LW.`) }
+			|| (playerPosition === 'CAM') || (playerPosition === 'RW') || (playerPosition === 'ST') || (playerPosition === 'LW'))) { return message.channel.send(`Please enter a valid player position.\nPositions: GK, RB, CB, LB, CDM, RM, CM, LM, CAM, RW, ST, LW.`) }
 
 		if (playerPosition) {
 			console.log(args[1]);
@@ -417,7 +416,7 @@ ID: ${player.id}`)
 			while (playerFound === false) {
 				var randomId = Math.floor(Math.random() * 18280);
 				console.log(randomId);
-				const youthPlayer = await TransferMarket.findOne({ where: { age: { [Op.lte]: 23 }, position: playerPosition, id: randomId } });				
+				const youthPlayer = await TransferMarket.findOne({ where: { age: { [Op.lte]: 23 }, position: playerPosition, id: randomId } });
 				if (youthPlayer != null) {
 					if (youthPlayer.original_eightyfive_plus === 1) {
 						return message.channel.send(`${youthPlayer.name} is a known wonderkid and has a potential of ${youthPlayer.potential_rating}. ${managerClub.name} won't be charged for this scouting mission, since the player is very well known.`);
@@ -450,22 +449,173 @@ This scout report cost ${managerClub.name} 2 Million €.`);
 	} else if (command === 'result') {
 		const args = message.content.slice(PREFIX.length).split(/ +/);
 		console.log(args);
-		if (args[1] === 'league') {
+		const homeClub = await Clubs.findOne({ where: { short_name: { [Op.like]: args[2] } } });
+		if (homeClub != null) { var homeClubBalance = Number(homeClub.balance); }
+		const awayClub = await Clubs.findOne({ where: { short_name: { [Op.like]: args[6] } } });
+		if (awayClub != null) { var awayClubBalance = Number(awayClub.balance); }
+		var todayDate = new Date().toString();
+		var homeGoals = Number(args[3]);
+		var awayGoals = Number(args[5]);
+		const meta = await Meta.findOne({ where: { season: { [Op.ne]: null } } });
+		var leagueSeason = meta.season;
 
-			message.channel.send(`Sure the score was ${args[2]} ${args[3]} : ${args[6]} ${args[5]}?\nReply Y within 10 seconds to confirm.`);
-			
+		if (args[1] === 'league') {
+			if (!((args[2] === 'Arsenal') || (args[2] === 'Atletico') || (args[2] === 'Barcelona') || (args[2] === 'Bayern')
+				|| (args[2] === 'Chelsea') || (args[2] === 'Dortmund') || (args[2] === 'Inter') || (args[2] === 'Juventus')
+				|| (args[2] === 'Liverpool') || (args[2] === 'Madrid') || (args[2] === 'ManCity') || (args[2] === 'ManUtd')
+				|| (args[2] === 'Milan') || (args[2] === 'PSG') || (args[2] === 'Tottenham'))) { return message.channel.send(`Please check if you entered correct club nicknames.\nNicknames: Arsenal, Atletico, Barcelona, Bayern, Chelsea, Dortmund, Inter, Juventus, Liverpool, Madrid, ManCity, ManUtd, Milan, PSG, Tottenham.\nIf nicknames are correct, make sure you used correctly spaced result format. Example:\n!result league Home 0 : 2 Away`) }
+			else if (!((args[6] === 'Arsenal') || (args[6] === 'Atletico') || (args[6] === 'Barcelona') || (args[6] === 'Bayern')
+				|| (args[6] === 'Chelsea') || (args[6] === 'Dortmund') || (args[6] === 'Inter') || (args[6] === 'Juventus')
+				|| (args[6] === 'Liverpool') || (args[6] === 'Madrid') || (args[6] === 'ManCity') || (args[6] === 'ManUtd')
+				|| (args[6] === 'Milan') || (args[6] === 'PSG') || (args[6] === 'Tottenham'))) { return message.channel.send(`Please check if you entered correct club nicknames.\nNicknames: Arsenal, Atletico, Barcelona, Bayern, Chelsea, Dortmund, Inter, Juventus, Liverpool, Madrid, ManCity, ManUtd, Milan, PSG, Tottenham.\nIf nicknames are correct, make sure you used correctly spaced result format. Example:\n!result league Home 4 : 1 Away`) }
+			else if (!(Number.isInteger(homeGoals) && Number.isInteger(awayGoals))) {
+				return message.channel.send(`Please enter valid integers for the goals.`)
+			} else if (homeGoals < 0 || awayGoals < 0) {
+				return message.channel.send(`Please enter positive integers for the goals.`)
+			}
+
+			var homeTeamTable = await LeagueTable.findOne({ where: { short_name: args[2], season: leagueSeason } });
+			var homePlayed = Number(homeTeamTable.played);
+			var homeWins = Number(homeTeamTable.win);
+			var homeLosses = Number(homeTeamTable.loss);
+			var homeDraws = Number(homeTeamTable.draw);
+			var homeGoalsFor = Number(homeTeamTable.goals_for);
+			var homeGoalsAgainst = Number(homeTeamTable.goals_against);
+			var homePoints = Number(homeTeamTable.league_points);
+			var awayTeamTable = await LeagueTable.findOne({ where: { short_name: args[6], season: leagueSeason } });
+			var awayPlayed = Number(awayTeamTable.played);
+			var awayWins = Number(awayTeamTable.win);
+			var awayLosses = Number(awayTeamTable.loss);
+			var awayDraws = Number(awayTeamTable.draw);
+			var awayGoalsFor = Number(awayTeamTable.goals_for);
+			var awayGoalsAgainst = Number(awayTeamTable.goals_against);
+			var awayPoints = Number(awayTeamTable.league_points);
+
+			message.channel.send(`Sure the score was ${args[2]} ${args[3]} : ${args[5]} ${args[6]}?\nReply Y within 10 seconds to confirm.`);
 			const collector = new Discord.MessageCollector(message.channel, m => m.author.id === message.author.id, { max: 1, time: 10000 });
-			console.log(collector)
 			collector.on('collect', message => {
 				if (message.content == "Y") {
-
-					if (args[3] > args[5]) { message.channel.send(`5 million to ${args[2]} for win & 2 million to ${args[6]} for the loss.`); }
-					else { message.channel.send(`5 million to ${args[6]} for win & 2 million to ${args[2]} for the loss.`); }
-
+					if (args[3] > args[5]) {
+						message.channel.send(`1 Million € awarded to ${args[2]} for the league win & 500K € to ${args[6]} for the loss.`);
+						(async function homeWin() {
+							await Clubs.update({ balance: homeClubBalance + 1000000 }, { where: { short_name: args[2] } });
+							await Clubs.update({ balance: awayClubBalance + 500000 }, { where: { short_name: args[6] } });
+							await Results.create({ team: args[2], opposition: args[6], match_type: args[1], league_season: leagueSeason, match_date: todayDate, result: 'win', goals_for: homeGoals, goals_against: awayGoals });
+							await LeagueTable.update({ played: homePlayed + 1, league_points: homePoints + 3, win: homeWins + 1, goals_for: homeGoalsFor + homeGoals, goals_against: homeGoalsAgainst + awayGoals }, { where: { short_name: args[2] } });
+							await LeagueTable.update({ played: awayPlayed + 1, loss: awayLosses + 1, goals_for: awayGoalsFor + awayGoals, goals_against: awayGoalsAgainst + homeGoals }, { where: { short_name: args[6] } });
+						}());
+					} else if (args[5] > args[3]) {
+						message.channel.send(`1 Million € awarded to ${args[6]} for the League win & 500K € to ${args[2]} for the loss.`);
+						(async function homeLoss() {
+							await Clubs.update({ balance: awayClubBalance + 1000000 }, { where: { short_name: args[6] } });
+							await Clubs.update({ balance: homeClubBalance + 500000 }, { where: { short_name: args[2] } });
+							await Results.create({ team: args[2], opposition: args[6], match_type: args[1], league_season: leagueSeason, match_date: todayDate, result: 'loss', goals_for: homeGoals, goals_against: awayGoals });
+							await LeagueTable.update({ played: homePlayed + 1, loss: homeLosses + 1, goals_for: homeGoalsFor + homeGoals, goals_against: homeGoalsAgainst + awayGoals }, { where: { short_name: args[2] } });
+							await LeagueTable.update({ played: awayPlayed + 1, league_points: awayPoints + 3, win: awayWins + 1, goals_for: awayGoalsFor + awayGoals, goals_against: awayGoalsAgainst + homeGoals }, { where: { short_name: args[6] } });
+						}());
+					} else if (args[3] === args[5]) {
+						message.channel.send(`750K € awarded to both ${args[6]} and ${args[2]} for the League draw.`);
+						(async function draw() {
+							await Clubs.update({ balance: homeClubBalance + 750000 }, { where: { short_name: args[2] } });
+							await Clubs.update({ balance: awayClubBalance + 750000 }, { where: { short_name: args[6] } });
+							await Results.create({ team: args[2], opposition: args[6], match_type: args[1], league_season: leagueSeason, match_date: todayDate, result: 'draw', goals_for: homeGoals, goals_against: awayGoals });
+							await LeagueTable.update({ played: homePlayed + 1, league_points: homePoints + 1, draw: homeDraws + 1, goals_for: homeGoalsFor + homeGoals, goals_against: homeGoalsAgainst + awayGoals }, { where: { short_name: args[2] } });
+							await LeagueTable.update({ played: awayPlayed + 1, league_points: awayPoints + 1, draw: awayDraws + 1, goals_for: awayGoalsFor + awayGoals, goals_against: awayGoalsAgainst + homeGoals }, { where: { short_name: args[6] } });
+						}());
+					}
 				} else { return; }
 			});
 		}
 
+		if (args[1] === 'cup') { //!result(0) cup Arsneal 0 : 9 Madrid QF		
+
+			if (!((args[2] === 'Arsenal') || (args[2] === 'Atletico') || (args[2] === 'Barcelona') || (args[2] === 'Bayern')
+				|| (args[2] === 'Chelsea') || (args[2] === 'Dortmund') || (args[2] === 'Inter') || (args[2] === 'Juventus')
+				|| (args[2] === 'Liverpool') || (args[2] === 'Madrid') || (args[2] === 'ManCity') || (args[2] === 'ManUtd')
+				|| (args[2] === 'Milan') || (args[2] === 'PSG') || (args[2] === 'Tottenham'))) { return message.channel.send(`Please check if you entered correct club nicknames.\nNicknames: Arsenal, Atletico, Barcelona, Bayern, Chelsea, Dortmund, Inter, Juventus, Liverpool, Madrid, ManCity, ManUtd, Milan, PSG, Tottenham.\nIf nicknames are correct, make sure you used correctly spaced result format. Example:\n!result cup Home 0 : 2 Away QF`) }
+			else if (!((args[6] === 'Arsenal') || (args[6] === 'Atletico') || (args[6] === 'Barcelona') || (args[6] === 'Bayern')
+				|| (args[6] === 'Chelsea') || (args[6] === 'Dortmund') || (args[6] === 'Inter') || (args[6] === 'Juventus')
+				|| (args[6] === 'Liverpool') || (args[6] === 'Madrid') || (args[6] === 'ManCity') || (args[6] === 'ManUtd')
+				|| (args[6] === 'Milan') || (args[6] === 'PSG') || (args[6] === 'Tottenham'))) { return message.channel.send(`Please check if you entered correct club nicknames.\nNicknames: Arsenal, Atletico, Barcelona, Bayern, Chelsea, Dortmund, Inter, Juventus, Liverpool, Madrid, ManCity, ManUtd, Milan, PSG, Tottenham.\nIf nicknames are correct, make sure you used correctly spaced result format. Example:\n!result cup Home 4 : 1 Away SF`) }
+			else if (!((args[7] === 'QF') || (args[7] === 'SF') || (args[7] === 'FINAL'))) { return message.channel.send(`Please enter the stage of the Champions Cup for this match (QF, SF, FINAL).\nExample: !result cup Home 1 : 0 Away FINAL`) }
+			else if (!(Number.isInteger(homeGoals) && Number.isInteger(awayGoals))) {
+				return message.channel.send(`Please enter valid integers for the goals.`)
+			} else if (homeGoals < 0 || awayGoals < 0) {
+				return message.channel.send(`Please enter positive integers for the goals.`)
+			}
+
+			message.channel.send(`Sure the score was ${args[2]} ${args[3]} : ${args[5]} ${args[6]}?\nReply Y within 10 seconds to confirm.`);
+			const collector = new Discord.MessageCollector(message.channel, m => m.author.id === message.author.id, { max: 1, time: 10000 });
+			collector.on('collect', message => {
+				if (message.content == "Y") {
+					if (args[3] > args[5]) {
+						message.channel.send(`1 Million € awarded to ${args[2]} for the Champions Cup win & 500K € to ${args[6]} for the loss.`);
+						client.channels.cache.get('743201986433908736').send(`CHAMPIONS CUP ${args[7]}: ${args[2]} beats ${args[6]} by ${args[3]} : ${args[5]}`);
+						(async function homeWin() {
+							await Clubs.update({ balance: homeClubBalance + 1000000 }, { where: { short_name: args[2] } });
+							await Clubs.update({ balance: awayClubBalance + 500000 }, { where: { short_name: args[6] } });
+							await Results.create({ team: args[2], opposition: args[6], match_type: args[1], league_season: leagueSeason, match_date: todayDate, result: 'win', goals_for: args[3], goals_against: args[5] });
+						}());
+					} else if (args[5] > args[3]) {
+						message.channel.send(`1 Million € awarded to ${args[6]} for the Champions Cup win & 500K € to ${args[2]} for the loss.`);
+						client.channels.cache.get('743201986433908736').send(`CHAMPIONS CUP ${args[7]}: ${args[6]} beats ${args[2]} by ${args[5]} : ${args[3]}`);
+						(async function homeLoss() {
+							await Clubs.update({ balance: awayClubBalance + 1000000 }, { where: { short_name: args[6] } });
+							await Clubs.update({ balance: homeClubBalance + 500000 }, { where: { short_name: args[2] } });
+							await Results.create({ team: args[2], opposition: args[6], match_type: args[1], league_season: leagueSeason, match_date: todayDate, result: 'loss', goals_for: args[3], goals_against: args[5] });
+						}());
+					}
+				} else { return; }
+			});
+		}
+
+		if (args[1] === 'friendly') {
+			var homeGoals = Number(args[3]);
+			var awayGoals = Number(args[5]);
+
+			if (!((args[2] === 'Arsenal') || (args[2] === 'Atletico') || (args[2] === 'Barcelona') || (args[2] === 'Bayern')
+				|| (args[2] === 'Chelsea') || (args[2] === 'Dortmund') || (args[2] === 'Inter') || (args[2] === 'Juventus')
+				|| (args[2] === 'Liverpool') || (args[2] === 'Madrid') || (args[2] === 'ManCity') || (args[2] === 'ManUtd')
+				|| (args[2] === 'Milan') || (args[2] === 'PSG') || (args[2] === 'Tottenham'))) { return message.channel.send(`Please check if you entered correct club nicknames.\nNicknames: Arsenal, Atletico, Barcelona, Bayern, Chelsea, Dortmund, Inter, Juventus, Liverpool, Madrid, ManCity, ManUtd, Milan, PSG, Tottenham.\nIf nicknames are correct, make sure you used correctly spaced result format. Example:\n!result league Home 0 : 2 Away`) }
+			else if (!((args[6] === 'Arsenal') || (args[6] === 'Atletico') || (args[6] === 'Barcelona') || (args[6] === 'Bayern')
+				|| (args[6] === 'Chelsea') || (args[6] === 'Dortmund') || (args[6] === 'Inter') || (args[6] === 'Juventus')
+				|| (args[6] === 'Liverpool') || (args[6] === 'Madrid') || (args[6] === 'ManCity') || (args[6] === 'ManUtd')
+				|| (args[6] === 'Milan') || (args[6] === 'PSG') || (args[6] === 'Tottenham'))) { return message.channel.send(`Please check if you entered correct club nicknames.\nNicknames: Arsenal, Atletico, Barcelona, Bayern, Chelsea, Dortmund, Inter, Juventus, Liverpool, Madrid, ManCity, ManUtd, Milan, PSG, Tottenham.\nIf nicknames are correct, make sure you used correctly spaced result format. Example:\n!result cup Home 4 : 1 Away`) }
+			else if (!(Number.isInteger(homeGoals) && Number.isInteger(awayGoals))) {
+				return message.channel.send(`Please enter valid integers for the goals.`)
+			} else if (homeGoals < 0 || awayGoals < 0) {
+				return message.channel.send(`Please enter positive integers for the goals.`)
+			}
+
+			message.channel.send(`Sure the score was ${args[2]} ${args[3]} : ${args[5]} ${args[6]}?\nReply Y within 10 seconds to confirm.`);
+			const collector = new Discord.MessageCollector(message.channel, m => m.author.id === message.author.id, { max: 1, time: 10000 });
+			collector.on('collect', message => {
+				if (message.content == "Y") {
+					if (args[3] > args[5]) {
+						message.channel.send(`1 Million € awarded to ${args[2]} for the win & 500K € to ${args[6]} for the loss.`);
+						(async function homeWin() {
+							await Clubs.update({ balance: homeClubBalance + 1000000 }, { where: { short_name: args[2] } });
+							await Clubs.update({ balance: awayClubBalance + 500000 }, { where: { short_name: args[6] } });
+							await Results.create({ team: args[2], opposition: args[6], match_type: args[1], league_season: leagueSeason, match_date: todayDate, result: 'win', goals_for: args[3], goals_against: args[5] });
+						}());
+					} else if (args[5] > args[3]) {
+						message.channel.send(`1 Million € awarded to ${args[6]} for the win & 500K € to ${args[2]} for the loss.`);
+						(async function homeLoss() {
+							await Clubs.update({ balance: awayClubBalance + 1000000 }, { where: { short_name: args[6] } });
+							await Clubs.update({ balance: homeClubBalance + 500000 }, { where: { short_name: args[2] } });
+							await Results.create({ team: args[2], opposition: args[6], match_type: args[1], league_season: leagueSeason, match_date: todayDate, result: 'loss', goals_for: args[3], goals_against: args[5] });
+						}());
+					} else if (args[3] === args[5]) {
+						message.channel.send(`750K € awarded to both ${args[6]} and ${args[2]} for the draw.`);
+						(async function draw() {
+							await Clubs.update({ balance: homeClubBalance + 750000 }, { where: { short_name: args[2] } });
+							await Clubs.update({ balance: awayClubBalance + 750000 }, { where: { short_name: args[6] } });
+							await Results.create({ team: args[2], opposition: args[6], match_type: args[1], league_season: leagueSeason, match_date: todayDate, result: 'draw', goals_for: args[3], goals_against: args[5] });
+						}());
+					}
+				} else { return; }
+			});
+		}
 
 	} else if (command === 'createfixtures') {
 		let fixtureDate = function (increment) {
@@ -518,6 +668,23 @@ This scout report cost ${managerClub.name} 2 Million €.`);
 			${teamlist[0]} vs ${teamlist[1]}\n
 			${teamlist[1]} vs ${teamlist[3]}\n
 			${teamlist[2]} vs ${teamlist[0]}`);
+
+	} else if (command === 'leaguetable') {
+
+		const meta = await Meta.findOne({ where: { season: { [Op.ne]: null } } });
+		var leagueSeason = meta.season;
+		const leagueTable = await LeagueTable.findAll({ where: { season: leagueSeason } });
+		var leaguePosition = 1;
+
+		leagueTable.sort((a, b) => {
+			return b.league_points - a.league_points;
+		});
+
+		client.channels.cache.get('743201986433908736').send(`Super League Standing - Season ${leagueSeason}\n_`);
+		leagueTable.forEach(async function (obj) {
+			client.channels.cache.get('743201986433908736').send(`${leaguePosition}. ${obj.short_name}   [${obj.league_points} Pts.]   (${obj.win}-${obj.loss}-${obj.draw})   [GD: ${obj.goals_for - obj.goals_against}]`)
+			leaguePosition = leaguePosition + 1;
+		});
 
 	} else if (command === 'dailytasks') {
 		//NEWS////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -614,7 +781,8 @@ This scout report cost ${managerClub.name} 2 Million €.`);
 					console.log(`${plobj.name} of ID: ${plobj.id}'s rating increased to ${plobj.current_rating}`);
 				}
 			});
-		});
+		});		
+
 	}
 });
 

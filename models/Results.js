@@ -1,8 +1,7 @@
 module.exports = (sequelize, DataTypes) => {
 	return sequelize.define('results', {
 		team: {
-			type: DataTypes.STRING,
-			primaryKey: true,
+			type: DataTypes.STRING,			
 		},
 		opposition: {
 			type: DataTypes.STRING,			
