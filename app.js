@@ -422,7 +422,7 @@ ID: ${player.id}`)
 			console.log(args[1]);
 			if (clubBalance < 2000000) { return message.channel.send(`Unfortunately, ${managerClub.name} cannot afford the 2 Million € required for this scouting mission.`) };
 			while (playerFound === false) {
-				var randomId = Math.floor(Math.random() * 18280);
+				var randomId = Math.floor(Math.random() * 18000);
 				console.log(randomId);
 				const youthPlayer = await TransferMarket.findOne({ where: { age: { [Op.lte]: 23 }, position: playerPosition, id: randomId } });
 				if (youthPlayer != null) {
