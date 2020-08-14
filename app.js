@@ -372,7 +372,7 @@ ID: ${player.id}`)
 		const youthCoaches = await YouthCoaches.findAll({ where: { club: { [Op.like]: managerClub.name } } });
 
 		youthCoaches.forEach(async function (obj) {
-			return message.channel.send(`${obj.name} - Level ${obj.level} - Wage: ${obj.wage}`);
+			return message.channel.send(`${obj.id}.${obj.name} - Level ${obj.level} - Wage: ${obj.wage}`);
 		});
 
 	} else if (command === 'upgradeyouthfacility') {
