@@ -367,6 +367,14 @@ ID: ${player.id}`)
 			message.channel.send(`Youth coach ${youthCoaches.name} is fired by ${managerClub.name}.`);
 		}
 
+	} else if (command === 'mystaff') {
+		const managerClub = await Clubs.findOne({ where: { manager_id: { [Op.like]: message.author.id } } });
+		const youthCoaches = await YouthCoaches.findAll({ where: { club: { [Op.like]: managerClub.name } } });
+
+		youthCoaches.forEach(async function (obj) {
+			return message.channel.send(`${obj.name} - Level ${obj.level} - Wage: ${obj.wage}`);
+		});
+
 	} else if (command === 'upgradeyouthfacility') {
 		const managerClub = await Clubs.findOne({ where: { manager_id: { [Op.like]: message.author.id } } });
 		const youthFacilityRating = Number(managerClub.youth_facility_level);
@@ -550,7 +558,7 @@ This scout report cost ${managerClub.name} 2 Million €.`);
 				if (message.content == "Y") {
 					if (args[3] > args[5]) {
 						message.channel.send(`1 Million € awarded to ${args[2]} for the Champions Cup win & 500K € to ${args[6]} for the loss.`);
-						client.channels.cache.get('743201986433908736').send(`CHAMPIONS CUP ${args[7]}: ${args[2]} beats ${args[6]} by ${args[3]} : ${args[5]}`);
+						client.channels.cache.get('741060015108128810').send(`SEASON ${leagueSeason}: CHAMPIONS CUP ${args[7]}: ${args[2]} beats ${args[6]} by ${args[3]} : ${args[5]}`);
 						(async function homeWin() {
 							await Clubs.update({ balance: homeClubBalance + 1000000 }, { where: { short_name: args[2] } });
 							await Clubs.update({ balance: awayClubBalance + 500000 }, { where: { short_name: args[6] } });
@@ -558,7 +566,7 @@ This scout report cost ${managerClub.name} 2 Million €.`);
 						}());
 					} else if (args[5] > args[3]) {
 						message.channel.send(`1 Million € awarded to ${args[6]} for the Champions Cup win & 500K € to ${args[2]} for the loss.`);
-						client.channels.cache.get('743201986433908736').send(`CHAMPIONS CUP ${args[7]}: ${args[6]} beats ${args[2]} by ${args[5]} : ${args[3]}`);
+						client.channels.cache.get('741060015108128810').send(`SEASON ${leagueSeason}: CHAMPIONS CUP ${args[7]}: ${args[6]} beats ${args[2]} by ${args[5]} : ${args[3]}`);
 						(async function homeLoss() {
 							await Clubs.update({ balance: awayClubBalance + 1000000 }, { where: { short_name: args[6] } });
 							await Clubs.update({ balance: homeClubBalance + 500000 }, { where: { short_name: args[2] } });
@@ -617,6 +625,10 @@ This scout report cost ${managerClub.name} 2 Million €.`);
 			});
 		}
 
+	} else if (command === 'clear') {
+
+		await message.channel.bulkDelete(5); // Bulk deletes all messages that have been fetched and are not older than 14 days (due to the Discord API)
+			
 	} else if (command === 'createfixtures') {
 		let fixtureDate = function (increment) {
 			var date = new Date();
@@ -680,14 +692,14 @@ This scout report cost ${managerClub.name} 2 Million €.`);
 			return b.league_points - a.league_points;
 		});
 
-		client.channels.cache.get('743201986433908736').send(`Super League Standing - Season ${leagueSeason}\n_`);
+		client.channels.cache.get('741059727441657900').send(`Super League Standing - Season ${leagueSeason}\n_`);
 		leagueTable.forEach(async function (obj) {
-			client.channels.cache.get('743201986433908736').send(`${leaguePosition}. ${obj.short_name}   [${obj.league_points} Pts.]   (${obj.win}-${obj.loss}-${obj.draw})   [GD: ${obj.goals_for - obj.goals_against}]`)
+			client.channels.cache.get('741059727441657900').send(`${leaguePosition}. ${obj.short_name}   [${obj.league_points} Pts.]   (${obj.win}-${obj.loss}-${obj.draw})   [GD: ${obj.goals_for - obj.goals_against}]`)
 			leaguePosition = leaguePosition + 1;
 		});
 
 	} else if (command === 'dailytasks') {
-		//NEWS////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+		//NEWS/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 		/*let eventsProbabInterval = [];
 		let i = 0;
@@ -739,7 +751,7 @@ This scout report cost ${managerClub.name} 2 Million €.`);
 			return randomInteger;
 		};*/
 
-		//LoanEnds////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+		//LOAN ENDS////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 		var today = new Date();
 		var dd = String(today.getDate()).padStart(2, '0');
 		var mm = String(today.getMonth() + 1).padStart(2, '0');
@@ -752,15 +764,14 @@ This scout report cost ${managerClub.name} 2 Million €.`);
 			await TransferMarket.update({ loan_club: null, loan_end: null }, { where: { id: obj.id } });
 		});
 
-		//YouthTasks//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+		//YOUTH TASKS//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 		const youthClub = await Clubs.findAll({ where: { manager_id: { [Op.ne]: null } } });
-		const youthPlayer = await TransferMarket.findAll({ where: { age: { [Op.lte]: 23 } } });
+		const youthPlayer = await TransferMarket.findAll({ where: { age: { [Op.lte]: 23 } } });	
 
 		youthClub.forEach(async function (obj) {
 			var nameDisplay = obj.name;
 			console.log(nameDisplay);
-			var currentYouthFacilitiesRating = obj.youth_facilities_rating;
-			console.log(currentYouthFacilitiesRating);
+			var currentYouthFacilitiesRating = obj.youth_facilities_rating;			
 
 			youthPlayer.forEach(async function (plobj) {
 				if (plobj.current_rating >= plobj.potential_rating) {
@@ -782,6 +793,15 @@ This scout report cost ${managerClub.name} 2 Million €.`);
 				}
 			});
 		});		
+
+		//WEEKLY EXPENDITURE/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+		youthClub.forEach(async function (obj) {
+			var clubBalance = obj.balance;
+			var weeklyExpenditure = Number(obj.weekly_expenditure);
+			var dailyExpenditure = Math.floor((weeklyExpenditure / 7) / 10) * 10; ;
+			await Clubs.update({ balance: clubBalance - dailyExpenditure }, { where: { id: obj.id } });
+		});
+
 
 	}
 });
