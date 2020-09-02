@@ -86,6 +86,76 @@ client.on('message', async message => {
 			return message.channel.send('Please use official club name as seen on Sofifa.com');
 		}
 
+	} else if (command === 'help') {
+
+		if (commandArgs.includes("transfer") || commandArgs.includes("market")) {
+			message.channel.send(
+`
+!findplayer <Name>
+Example: !findplayer Mbappe
+Description: Find player by his name. Get his ID number.
+
+!buyplayer <ID#>
+Description: Buy a non-human-managed player. Look up ID# using !findplayer.
+
+!loanplayer <ID#>
+Description: Loan a player. Must be 23 or younger and rated under 85. Fee per week is 10% of player value.
+
+!swapplayer <In Plyr ID#> <Out Plyr ID#>
+Description: Swap your player for another. Difference is paid to club with higher valued player. Your player's value takes a 5% hit in the swap.
+
+!releaseplayer <ID#>
+Description: Sell player to PC and get 95% of player value as compensation. Player becomes Free Agent..
+
+!sellplayer <ID#> <Price> <@Buyer>
+Example: !sellplayer 77 40000000 @JohnCena
+Description: Offer player to human manager, who will have 5 minutes to accept.`);
+
+		} else if (commandArgs.includes("buy") || commandArgs.includes("bid")) {
+			message.channel.send(
+				`
+!buyplayer <ID#>
+Description: Buy a non-human-managed player. Look up ID# using !findplayer.`);
+
+		} else if (commandArgs.includes("find") || commandArgs.includes("search") || commandArgs.includes("look") || commandArgs.includes("id")
+			|| commandArgs.includes("ID") || commandArgs.includes("#") || commandArgs.includes("number")) {
+			message.channel.send(
+				`
+!findplayer <Name>
+Example: !findplayer Mbappe
+Description: Find player by his name. Get his ID number.`);
+
+		} else if (commandArgs.includes("swap") || commandArgs.includes("exchange")) {
+			message.channel.send(
+				`
+!swapplayer <In Plyr ID#> <Out Plyr ID#>
+Description: Swap your player for another. Difference is paid to club with higher valued player. Your player's value takes a 5% hit in the swap.`);
+
+		} else if (commandArgs.includes("sell") || commandArgs.includes("release")) {
+			message.channel.send(
+				`
+!sellplayer <ID#> <Price> <@Buyer>
+Example: !sellplayer 77 40000000 @JohnCena
+Description: Offer player to human manager, who will have 5 minutes to accept.
+
+!releaseplayer <ID#>
+Description: Sell player to PC and get 95% of player value as compensation. Player becomes Free Agent.`);
+
+		} else if (commandArgs.includes("loan")) {
+			message.channel.send(
+				`
+!loanplayer <ID#>
+Description: Loan a player. Must be 23 or younger and rated under 85. Fee per week is 10% of player value.`);
+
+		} 
+
+		 
+
+
+
+
+
+
 	} else if (command === 'myteam') {
 		const managerClub = await Clubs.findOne({ where: { manager_id: { [Op.like]: message.author.id } } });
 		const players = await TransferMarket.findAll({ where: { manager_id: managerClub.manager_id } });
@@ -181,8 +251,14 @@ ID: ${player.id}`)
 		const managerClub = await Clubs.findOne({ where: { manager_id: { [Op.like]: message.author.id } } });
 		let clubBalance = managerClub.balance;
 		let weeklyExpenditure = Number(managerClub.weekly_expenditure);
-		if (!player) { return message.channel.send('That player ID doesn\'t exist.'); }
-		else if (player.value > managerClub.balance) {
+		if (!player) {
+			return message.channel.send('That player ID doesn\'t exist.');
+		} else if (player.club === 'Free Agent') {
+			message.channel.send(`Free Agent ${player.name} signs for ${managerClub.name}!`);
+			client.channels.cache.get('724832698161561642').send(`FREE AGENT: ${player.name} to ${managerClub.name}`);
+			await TransferMarket.update({ manager_id: message.author.id, club: managerClub.name }, { where: { id: commandArgs } });
+			await Clubs.update({ weekly_expenditure: weeklyExpenditure + player.wage }, { where: { manager_id: message.author.id } });
+		} else if (player.value > managerClub.balance) {
 			message.channel.send(`${player.name} costs ${player.value}€. Unfortunately, you don't have enough funds.`);
 		} else if (player.manager_id) {
 			message.channel.send(`Please make a formal enquiry to ${player.club} manager.`);
@@ -317,7 +393,7 @@ ID: ${player.id}`)
 			return message.channel.send(`Unfortunately, ${buyerClub.name} currently cannot afford the fee asked for ${player.name}.`);
 		}
 
-	} else if (command === 'findyouthcoach') {
+	} else if (command === 'findcoach') {
 		const args = message.content.slice(PREFIX.length).split(/ +/);
 		const youthCoaches = await YouthCoaches.findAll({ where: { level: args[1] } });
 
@@ -329,7 +405,7 @@ ID: ${player.id}`)
 			});
 		}
 
-	} else if (command === 'hireyouthcoach') {
+	} else if (command === 'hirecoach') {
 		const args = message.content.slice(PREFIX.length).split(/ +/);
 		const youthCoaches = await YouthCoaches.findOne({ where: { id: args[1] } });
 		const managerClub = await Clubs.findOne({ where: { manager_id: { [Op.like]: message.author.id } } });
@@ -350,7 +426,7 @@ ID: ${player.id}`)
 			message.channel.send(`${youthCoaches.name} signs a youth coaching contract with ${managerClub.name} which will see him net a weekly wage of ${youthCoaches.wage}€.`);
 		}
 
-	} else if (command === 'fireyouthcoach') {
+	} else if (command === 'firecoach') {
 		const args = message.content.slice(PREFIX.length).split(/ +/);
 		const youthCoaches = await YouthCoaches.findOne({ where: { id: args[1] } });
 		const managerClub = await Clubs.findOne({ where: { manager_id: { [Op.like]: message.author.id } } });
@@ -375,7 +451,7 @@ ID: ${player.id}`)
 			return message.channel.send(`${obj.id}.${obj.name} - Level ${obj.level} - Wage: ${obj.wage}`);
 		});
 
-	} else if (command === 'upgradeyouthfacility') {
+	} else if (command === 'upgradefacility') {
 		const managerClub = await Clubs.findOne({ where: { manager_id: { [Op.like]: message.author.id } } });
 		const youthFacilityRating = Number(managerClub.youth_facility_level);
 		const currentYouthFacilitiesRating = Number(managerClub.youth_facilities_rating);
@@ -406,7 +482,7 @@ ID: ${player.id}`)
 			}
 		}
 
-	} else if (command === 'scoutplayer') {
+	} else if (command === 'scout') {
 		const managerClub = await Clubs.findOne({ where: { manager_id: { [Op.like]: message.author.id } } });
 		var clubBalance = Number(managerClub.balance);
 		const args = message.content.slice(PREFIX.length).split(/ +/);
@@ -414,9 +490,11 @@ ID: ${player.id}`)
 		var playerPosition = args[1];
 		var scoutRange = 4;
 		console.log(playerPosition);
-		if (!((playerPosition === 'GK') || (playerPosition === 'RB') || (playerPosition === 'CB') || (playerPosition === 'LB')
+		if (!((playerPosition === 'GK') || (playerPosition === 'RB') || (playerPosition === 'RWB') ||
+			(playerPosition === 'CB') || (playerPosition === 'LB') || (playerPosition === 'LWB')
 			|| (playerPosition === 'CDM') || (playerPosition === 'RM') || (playerPosition === 'CM') || (playerPosition === 'LM')
-			|| (playerPosition === 'CAM') || (playerPosition === 'RW') || (playerPosition === 'ST') || (playerPosition === 'LW'))) { return message.channel.send(`Please enter a valid player position.\nPositions: GK, RB, CB, LB, CDM, RM, CM, LM, CAM, RW, ST, LW.`) }
+			|| (playerPosition === 'CAM') || (playerPosition === 'RW') || (playerPosition === 'ST') || (playerPosition === 'CF') || (playerPosition === 'LW')))
+		{ return message.channel.send(`Please enter a valid player position.\nPositions: GK, RB, RWB, CB, LB, LWB, CDM, RM, CM, LM, CAM, RW, ST, CF, LW.`) }
 
 		if (playerPosition) {
 			console.log(args[1]);
@@ -447,7 +525,27 @@ This scout report cost ${managerClub.name} 2 Million €.`);
 			return message.channel.send('Use command !scoutyouthplayer <position>\nReplace <position> with position of youth player you want to scout.\nCost of scouting: 2 Million €');
 		}
 
-	} else if (command === 'timetest') {
+	} /*else if (command === 'randompotential') {
+		var playerFound = false;
+		var i = 1;
+
+		while (i < 6) {
+			var randomId = Math.floor(Math.random() * 18000);
+			var potential = 94;
+			console.log(randomId);
+			const youthPlayer = await TransferMarket.findOne({ where: { age: { [Op.lte]: 23 }, id: randomId } });
+			if (youthPlayer != null) {
+				if (youthPlayer.original_eightyfive_plus === 1) {
+					continue;
+				} else {
+					console.log(`${youthPlayer.name} is the ${i}th player upgraded to a ${potential} potential.`);
+					await TransferMarket.update({ potential_rating: potential }, { where: { id: randomId } });
+					i = i + 1;
+				}
+			}
+		}
+
+	}*/ else if (command === 'timetest') {
 		message.channel.send('Hmm. I like the amount you are offering. Let me think about it for 5 seconds.');
 		setTimeout(function () {
 			message.channel.send("Ok sounds good. Let's make a deal.")
@@ -627,7 +725,7 @@ This scout report cost ${managerClub.name} 2 Million €.`);
 
 	} else if (command === 'clear') {
 
-		await message.channel.bulkDelete(5); // Bulk deletes all messages that have been fetched and are not older than 14 days (due to the Discord API)
+		await message.channel.bulkDelete(20); // Bulk deletes all messages that have been fetched and are not older than 14 days (due to the Discord API)
 			
 	} else if (command === 'createfixtures') {
 		let fixtureDate = function (increment) {
