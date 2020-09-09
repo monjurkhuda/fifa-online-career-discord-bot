@@ -1,5 +1,5 @@
 # Fifa Online Career Discord Bot
-### An abandoned discord bot to manage an unofficial FIFA online career mode.
+### A discord bot to manage an unofficial FIFA online career mode.
 
 #### Features:
 * Financials
