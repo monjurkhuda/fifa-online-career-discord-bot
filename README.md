@@ -1,8 +1,7 @@
 # Fifa Online Career Discord Bot
-### A discord bot to manage an unofficial FIFA online career mode.
+### An abandoned discord bot to manage an unofficial FIFA online career mode.
 
 #### Features:
-
 * Financials
   * Player wages, Transfer fees, Loans, Swaps, Coch Wages, Youth facility costs
 * Scouting
@@ -11,4 +10,10 @@
   * Hire coaches, develop youth player ratings everyday depending on coach quality (to be implemented in game via player modification), Upgrade youth facility
 * Result Logging
   * Result logging by players with a simple message in discord. Position changing on league table.
-* And some more...
+
+#### Abandoned Flex Features:
+* Dynamic Transfer Negotiations
+  * Transfers would be negotitated by bot based on club status, need to keep player etc.
+* Random Events
+  * Random events would rock the clubs. Oil sheikh takeover, chairman buying a player you don't want, player injuries etc. 
+* And much more...
