@@ -1,4 +1,6 @@
-﻿const config = require('./config');
+//Replace TRANSFER_CHANNEL_ID_NUMBER with the ID of the channel where you want to keep transfer records.
+
+const config = require('./config');
 const Discord = require('discord.js');
 
 const client = new Discord.Client();
@@ -266,7 +268,7 @@ ID: ${player.id}`)
 			message.channel.send(`${player.name} is currently on loan in ${player.loan_club} until ${player.loan_end}.`);
 		} else {
 			message.channel.send(`${player.name} signs for ${managerClub.name} for ${player.value}€!`);
-			client.channels.cache.get('724832698161561642').send(`${player.name} to ${managerClub.name} from ${player.club} for ${player.value}€`);
+			client.channels.cache.get('TRANSFER_CHANNEL_ID_NUMBER').send(`${player.name} to ${managerClub.name} from ${player.club} for ${player.value}€`);
 			await TransferMarket.update({ manager_id: message.author.id, club: managerClub.name }, { where: { id: commandArgs } });
 			await Clubs.update({ balance: clubBalance - player.value, weekly_expenditure: weeklyExpenditure + player.wage }, { where: { manager_id: message.author.id } });
 		}
@@ -294,7 +296,7 @@ ID: ${player.id}`)
 			message.channel.send(`The loan fee for ${player.name} is ${loanFee}. Currently, your club cannot afford this loan.`);
 		} else {
 			message.channel.send(`${player.name} is loaned to ${managerClub.name} until ${oneWeek} for a fee of ${loanFee}€`);
-			client.channels.cache.get('724832698161561642').send(`LOAN: ${player.name} to ${managerClub.name} from ${player.club} for ${loanFee}€ until ${oneWeek}`);
+			client.channels.cache.get('TRANSFER_CHANNEL_ID_NUMBER').send(`LOAN: ${player.name} to ${managerClub.name} from ${player.club} for ${loanFee}€ until ${oneWeek}`);
 			await TransferMarket.update({ loan_club: managerClub.name, loan_end: oneWeek }, { where: { id: commandArgs } });
 			await Clubs.update({ balance: clubBalance - loanFee }, { where: { manager_id: message.author.id } });
 		}
@@ -319,19 +321,19 @@ ID: ${player.id}`)
 			return message.channel.send(`${inPlayer.name} is valued at ${inPlayer.value}. Unfortunately, your balance is currently too low to make up the difference in the player swap.`);
 		} else if (inPlayer.value > outPlayerValue) {
 			message.channel.send(`${inPlayer.name} joins ${managerClub.name} in a swap deal with ${inPlayer.club} for ${outPlayer.name}. ${managerClub.name} pays ${inPlayer.value - outPlayerValue}€ to ${inPlayer.club} as part of the deal.`);
-			client.channels.cache.get('724832698161561642').send(`SWAP: ${inPlayer.name} to ${managerClub.name} from ${inPlayer.club} for ${inPlayer.value - outPlayerValue}€ plus ${outPlayer.name}`);
+			client.channels.cache.get('TRANSFER_CHANNEL_ID_NUMBER').send(`SWAP: ${inPlayer.name} to ${managerClub.name} from ${inPlayer.club} for ${inPlayer.value - outPlayerValue}€ plus ${outPlayer.name}`);
 			await TransferMarket.update({ manager_id: null, club: inPlayer.club }, { where: { id: args[2] } });
 			await TransferMarket.update({ manager_id: message.author.id, club: managerClub.name }, { where: { id: args[1] } });
 			await Clubs.update({ balance: clubBalance - (inPlayer.value - outPlayerValue), weekly_expenditure: weeklyExpenditure + inPlayer.wage - outPlayer.wage }, { where: { manager_id: message.author.id } });
 		} else if (outPlayerValue > inPlayer.value) {
 			message.channel.send(`${inPlayer.name} joins ${managerClub.name} in a swap deal with ${inPlayer.club} for ${outPlayer.name}. ${managerClub.name} receives ${outPlayerValue - inPlayer.value}€ from ${inPlayer.club} as part of the deal.`);
-			client.channels.cache.get('724832698161561642').send(`SWAP: ${inPlayer.name} plus ${outPlayerValue - inPlayer.value}€ to ${managerClub.name} from ${inPlayer.club} for ${outPlayer.name}`);
+			client.channels.cache.get('TRANSFER_CHANNEL_ID_NUMBER').send(`SWAP: ${inPlayer.name} plus ${outPlayerValue - inPlayer.value}€ to ${managerClub.name} from ${inPlayer.club} for ${outPlayer.name}`);
 			await TransferMarket.update({ manager_id: null, club: inPlayer.club }, { where: { id: args[2] } });
 			await TransferMarket.update({ manager_id: message.author.id, club: managerClub.name }, { where: { id: args[1] } });
 			await Clubs.update({ balance: clubBalance + (outPlayerValue - inPlayer.value), weekly_expenditure: weeklyExpenditure + inPlayer.wage - outPlayer.wage }, { where: { manager_id: message.author.id } });
 		} else if (outPlayerValue === inPlayer.value) {
 			message.channel.send(`${inPlayer.name} joins ${managerClub.name} in a straight swap deal with ${inPlayer.club} for ${outPlayer.name}.`);
-			client.channels.cache.get('724832698161561642').send(`SWAP: ${inPlayer.name} to ${managerClub.name} from ${inPlayer.club} for ${outPlayer.name}`);
+			client.channels.cache.get('TRANSFER_CHANNEL_ID_NUMBER').send(`SWAP: ${inPlayer.name} to ${managerClub.name} from ${inPlayer.club} for ${outPlayer.name}`);
 			await TransferMarket.update({ manager_id: null, club: inPlayer.club }, { where: { id: args[2] } });
 			await TransferMarket.update({ manager_id: message.author.id, club: managerClub.name }, { where: { id: args[1] } });
 			await Clubs.update({ weekly_expenditure: weeklyExpenditure + inPlayer.wage - outPlayer.wage }, { where: { manager_id: message.author.id } });
@@ -347,7 +349,7 @@ ID: ${player.id}`)
 		console.log(`${managerClub.manager_id}       ${message.author.id}`);
 		if (player.club === managerClub.name) {
 			message.channel.send(`${player.name} was released by ${managerClub.name} to be a Free Agent. The club was compensated with ${releasedPlayerValue}€`);
-			client.channels.cache.get('724832698161561642').send(`RELEASED: ${player.name} released by ${managerClub.name}. ${managerClub.name} compensated with ${releasedPlayerValue}€`);
+			client.channels.cache.get('TRANSFER_CHANNEL_ID_NUMBER').send(`RELEASED: ${player.name} released by ${managerClub.name}. ${managerClub.name} compensated with ${releasedPlayerValue}€`);
 			await Clubs.update({ balance: clubBalance + releasedPlayerValue, weekly_expenditure: weeklyExpenditure - player.wage }, { where: { manager_id: message.author.id } });
 			await TransferMarket.update({ manager_id: null, club: 'Free Agent' }, { where: { id: args[1] } });
 		} else {
@@ -376,7 +378,7 @@ ID: ${player.id}`)
 				const collector = message.createReactionCollector(filter, { time: 1000 * 60 * 5 });
 				collector.on('collect', (reaction, user) => {
 					message.channel.send(`${player.name} moves from ${sellerClub.name} to ${buyerClub.name} for a fee of ${sellingPrice}€`);
-					client.channels.cache.get('724832698161561642').send(`${player.name} to ${buyerClub.name} from ${player.club} for ${sellingPrice}€`);
+					client.channels.cache.get('TRANSFER_CHANNEL_ID_NUMBER').send(`${player.name} to ${buyerClub.name} from ${player.club} for ${sellingPrice}€`);
 					sellUpdate();
 					collector.stop();
 				});
@@ -656,7 +658,7 @@ This scout report cost ${managerClub.name} 2 Million €.`);
 				if (message.content == "Y") {
 					if (args[3] > args[5]) {
 						message.channel.send(`1 Million € awarded to ${args[2]} for the Champions Cup win & 500K € to ${args[6]} for the loss.`);
-						client.channels.cache.get('741060015108128810').send(`SEASON ${leagueSeason}: CHAMPIONS CUP ${args[7]}: ${args[2]} beats ${args[6]} by ${args[3]} : ${args[5]}`);
+						client.channels.cache.get('TRANSFER_CHANNEL_ID_NUMBER').send(`SEASON ${leagueSeason}: CHAMPIONS CUP ${args[7]}: ${args[2]} beats ${args[6]} by ${args[3]} : ${args[5]}`);
 						(async function homeWin() {
 							await Clubs.update({ balance: homeClubBalance + 1000000 }, { where: { short_name: args[2] } });
 							await Clubs.update({ balance: awayClubBalance + 500000 }, { where: { short_name: args[6] } });
@@ -664,7 +666,7 @@ This scout report cost ${managerClub.name} 2 Million €.`);
 						}());
 					} else if (args[5] > args[3]) {
 						message.channel.send(`1 Million € awarded to ${args[6]} for the Champions Cup win & 500K € to ${args[2]} for the loss.`);
-						client.channels.cache.get('741060015108128810').send(`SEASON ${leagueSeason}: CHAMPIONS CUP ${args[7]}: ${args[6]} beats ${args[2]} by ${args[5]} : ${args[3]}`);
+						client.channels.cache.get('TRANSFER_CHANNEL_ID_NUMBER').send(`SEASON ${leagueSeason}: CHAMPIONS CUP ${args[7]}: ${args[6]} beats ${args[2]} by ${args[5]} : ${args[3]}`);
 						(async function homeLoss() {
 							await Clubs.update({ balance: awayClubBalance + 1000000 }, { where: { short_name: args[6] } });
 							await Clubs.update({ balance: homeClubBalance + 500000 }, { where: { short_name: args[2] } });
@@ -790,9 +792,9 @@ This scout report cost ${managerClub.name} 2 Million €.`);
 			return b.league_points - a.league_points;
 		});
 
-		client.channels.cache.get('741059727441657900').send(`Super League Standing - Season ${leagueSeason}\n_`);
+		client.channels.cache.get('TRANSFER_CHANNEL_ID_NUMBER').send(`Super League Standing - Season ${leagueSeason}\n_`);
 		leagueTable.forEach(async function (obj) {
-			client.channels.cache.get('741059727441657900').send(`${leaguePosition}. ${obj.short_name}   [${obj.league_points} Pts.]   (${obj.win}-${obj.loss}-${obj.draw})   [GD: ${obj.goals_for - obj.goals_against}]`)
+			client.channels.cache.get('TRANSFER_CHANNEL_ID_NUMBER').send(`${leaguePosition}. ${obj.short_name}   [${obj.league_points} Pts.]   (${obj.win}-${obj.loss}-${obj.draw})   [GD: ${obj.goals_for - obj.goals_against}]`)
 			leaguePosition = leaguePosition + 1;
 		});
 
@@ -858,7 +860,7 @@ This scout report cost ${managerClub.name} 2 Million €.`);
 
 		const loanEndedPlayer = await TransferMarket.findAll({ where: { loan_end: { [Op.like]: today } } });
 		loanEndedPlayer.forEach(async function (obj) {
-			client.channels.cache.get('724832698161561642').send(`END OF LOAN: ${obj.name} ends his loan with ${obj.loan_club} and returns to ${obj.club}`);
+			client.channels.cache.get('TRANSFER_CHANNEL_ID_NUMBER').send(`END OF LOAN: ${obj.name} ends his loan with ${obj.loan_club} and returns to ${obj.club}`);
 			await TransferMarket.update({ loan_club: null, loan_end: null }, { where: { id: obj.id } });
 		});
 
