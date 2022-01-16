@@ -3,7 +3,7 @@
 
 #### Features:
 * Financials
-  * Player wages, Transfer fees, Loans, Swaps, Coch Wages, Youth facility costs
+  * Player wages, Transfer fees, Loans, Swaps, Coach Wages, Youth facility costs etc
 * Scouting
   * Scout random youth players (was planning to assign random potential to some youth players so that you can't just look it up on SoFifa.com)  
 * Youth Development
